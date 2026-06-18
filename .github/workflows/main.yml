@@ -1,48 +1,32 @@
-name: 📱 Run Compose Phone on GitHub
-
-on:
-  workflow_dispatch: # 👈 Tap the run button from your phone screen
+name: Run Android 16 Cloud VM
+on: 
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
 
 jobs:
-  launch-compose:
-    runs-on: ubuntu-latest
-
+  run-emulator:
+    # Use macos-14 or macos-latest for Apple Silicon acceleration
+    runs-on: macos-14 
     steps:
-    - name: 📂 Pull Code Repo
-      uses: actions/checkout@v4
-      with:
-        path: Android # 👈 Safely matches your 'Android' repository name
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: 🛠️ Load Android Kernel Drivers
-      run: |
-        sudo modprobe binder_linux devices="binder,hwbinder,vndbinder" || true
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
 
-    - name: 🚀 Start System with Docker Compose
-      run: |
-        # 1. Move inside your 'Android' repository folder to prevent the missing file error
-        cd Android
-        
-        # 2. Print files to log tracking for verification
-        ls -la
-        
-        # 3. Pull and launch the mobile containers
-        docker compose up -d
-
-    - name: 🌐 Bind to Domain and Print Connection Link
-      run: |
-        cd Android
-        
-        echo "⏰ Waiting 10 seconds for initialization..."
-        sleep 10
-        echo "=========================================================="
-        echo "👇 YOUR ONLINE PHONE WILL ROUTE TO:"
-        echo "=========================================================="
-        echo "🌐 https://biui.co.vn"
-        echo "=========================================================="
-        
-        # Pulls live streaming status data for your visual checks
-        docker compose logs public-tunnel 2>&1 | head -n 20
-        
-        # Keeps your GitHub action server hosting active for 6 hours
-        sleep 21600
-        
+      - name: Install and Run Android 16 Emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36        # API 36 corresponds to Android 16
+          target: google_apis  # Includes official Google APIs
+          arch: aarch64        # Use ARM64 architecture to match macOS-14 M-series chips
+          profile: Pixel_8     # A modern profile compatible with Android 16 requirements
+          script: |
+            echo "Android 16 Virtual Machine is booted and running!"
+            adb devices
+            
+            # Keep the VM alive for your tests (up to 6 hours max)
+            # Change this number to control how long the machine stays running
+            sleep 21600 
