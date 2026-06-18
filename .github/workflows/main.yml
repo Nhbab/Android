@@ -20,58 +20,38 @@ jobs:
           sudo udevadm trigger --name-match=kvm
           sudo chmod 666 /dev/kvm
 
-      # DỌN DẸP SẠCH: Đảm bảo không trùng lặp bộ nhớ đệm thiết bị
       - name: Clean Existing Docker Containers Cache
         run: |
           docker stop $(docker ps -aq) || true
           docker rm -f $(docker ps -aq) || true
-          docker network rm cloud_phone_net || true
 
-      # HỆ THỐNG DOCKER KHÔNG LỆNH TẢI: Loại bỏ 100% wget/curl để triệt tiêu lỗi 23
-      - name: Deploy Pure Docker Architecture
+      # SỬA LỖI PULL DENIED: Dùng gói tổng hợp tích hợp sẵn Web VNC gốc công khai 100%
+      - name: Deploy Unified Android TV & VNC Core
         run: |
-          # 1. Tạo mạng ảo nội bộ
-          docker network create cloud_phone_net
-          
-          sudo modprobe ashmem_linux || true
-          sudo modprobe binder_linux || true
-          
-          # 2. CONTAINER LÕI: Chạy Android TV 11 nguyên bản ổn định
-          docker run -d --privileged --name android_core \
-            --network cloud_phone_net \
+          # Khởi chạy một Container duy nhất chứa cả hệ điều hành TV lẫn giao diện Web canvas trên cổng 6080
+          docker run -d --privileged --name android_tv \
             --device /dev/kvm \
-            redroid/redroid:11.0.0-latest \
-            androidboot.hardware=redroid \
-            androidboot.wlan.interface=wlan0 \
-            redroid.width=1280 redroid.height=720 redroid.fps=30 redroid.density=320
+            -p 6080:6080 \
+            -e DEVICE="Android TV" \
+            -e PACKAGE="system-images;android-30;google_apis;x86_64" \
+            budtmo/docker-android:x86-11.0
             
-          sleep 15
-            
-          # 3. CONTAINER ĐỒ HỌA: Kết nối VNC hiển thị trực tiếp màn hình gốc Android
-          docker run -d --name web_canvas \
-            --network cloud_phone_net \
-            -p 6080:80 \
-            -e ADB_HOST=android_core \
-            -e VNC_PASSWORD=password123 \
-            sorccu/adb-vnc-server
-          
-          sleep 10
+          # Đợi 25 giây để hệ thống Docker giải nén phân vùng đĩa ảo đám mây
+          sleep 25
 
-          # 4. Kích hoạt kết nối cầu nối ADB nội bộ (Không tải bất kỳ file apk nào vào đĩa)
-          docker exec -i web_canvas adb connect android_core:5555 || true
-          sleep 5
-
-          # 5. CONTAINER ĐƯỜNG TRUYỀN: Khởi chạy Ngrok truyền tải luồng tín hiệu
+      # CONTAINER ĐƯỜNG TRUYỀN: Kích hoạt gói Ngrok liên kết thẳng vào cổng truyền hình ảnh 6080
+      - name: Launch Ngrok Connection Agent
+        run: |
           docker run -d --name ngrok_agent \
-            --network cloud_phone_net \
+            --link android_tv:android_tv \
             ngrok/ngrok:latest \
-            http web_canvas:80 --token=rd_3FJNUZLuxuKSUetomzVf2PqUeHX --domain=banister-reopen-savings.ngrok-free.dev
+            http android_tv:6080 --token=rd_3FJNUZLuxuKSUetomzVf2PqUeHX --domain=banister-reopen-savings.ngrok-free.dev
 
       - name: Maintain Server Runtime Loop
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Vòng lặp xoay vòng máy chủ 6 tiếng vô tận
+          # Vòng lặp xoay vòng kích hoạt máy chủ lặp vô tận sau mỗi 5 tiếng 50 phút
           (sleep 21000 && gh workflow run "Ultimate Android TV ARM Emulator" || true) & 
           
           echo "=== PURE ANDROID TV DOCKER EMULATOR IS ONLINE ==="
