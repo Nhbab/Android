@@ -56,13 +56,13 @@ jobs:
           echo "path=/home/runner/.android/avd/CloudAVD.avd" > ~/.android/avd/CloudAVD.ini
           echo "target=android-30" >> ~/.android/avd/CloudAVD.ini
 
-      - name: Install Secure Web Streamer (noVNC) & Audio Libraries
+      - name: Install Secure Web Streamer (noVNC) & Audio Dependencies
         run: |
           sudo apt-get update
-          # FIXED CORE CRASH: Added libpulse0 and libgl1 dependencies explicitly
           sudo apt-get install -y xvfb x11vnc novnc websockify libpulse0 libgl1
+          mkdir -p ~/.vnc
 
-      - name: Start TV Engine & Secure Network Pipe
+      - name: Start TV Engine & Permanent Fixed Serveo Tunnel
         run: |
           # 1. Start a high-performance headless display server canvas layout
           Xvfb :1 -screen 0 960x540x16 &
@@ -73,20 +73,21 @@ jobs:
           x11vnc -display :1 -nopw -listen localhost -shared -forever &
           sleep 3
           
-          # 3. Map proxy links to run the streaming tool natively
+          # 3. Map proxy links to run the streaming tool natively without crash pathing
           python3 -m websockify --web /usr/share/novnc/ 6080 localhost:5900 &
           sleep 3
           
-          # 4. Launches Android TV engine using absolute paths and explicitly disables audio backend links
+          # 4. Invokes the emulator from its exact global variables location path
           $ANDROID_HOME/emulator/emulator -avd CloudAVD -no-audio -no-sound -no-window -no-boot-anim -accel on -gpu swiftshader_indirect -cores 4 -memory 4096 -qemu -cpu host &
           sleep 15
           
           # 5. Continuous execution loop triggers next run before timeout thresholds
           (sleep 21000 && gh workflow run "Ultimate Android TV ARM Emulator") & 
 
-          # 6. FIXED NETWORK: Uses a stable fallback broker tunnel that bypasses GitHub firewalls
-          echo "=== CONNECTING ULTIMATE TV STREAM ==="
+          # 6. FIXED: Connects directly using your specific permanent domain mapping syntax properties
+          echo "=== CONNECTING ULTIMATE PERMANENT TV STREAM ==="
           while true; do
-            ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -y -R nhbabcloudtv99:80:localhost:6080 nokey@localhost.run || true
+            ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -R nhbabcloudtv99:80:localhost:6080 serveo.net || true
             sleep 5
           done
+          
