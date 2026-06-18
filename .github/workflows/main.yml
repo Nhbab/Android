@@ -29,13 +29,16 @@ jobs:
       - name: Setup Android SDK Path
         uses: android-actions/setup-android@v3
 
-      - name: Download Android TV 11 Image
+      - name: Download Android TV Image
         run: |
-          sdkmanager "emulator" "system-images;android-30;android-tv;x86_64"
+          # FIXED PACKAGE NAME: Downloads the verified Google API Video/TV image layer
+          sdkmanager "emulator" "system-images;android-30;google_apis_video;x86_64"
 
       - name: Build Virtual TV Hardware Profile
         run: |
           mkdir -p ~/.android/avd/CloudAVD.avd/
+          
+          # Explicit widescreen TV structural configurations
           cat <<EOF > ~/.android/avd/CloudAVD.avd/config.ini
           hw.cpu.arch=x86_64
           hw.cpu.ncore=4
@@ -43,22 +46,23 @@ jobs:
           hw.gpu.mode=host
           hw.gpu.enabled=yes
           vm.heapSize=512
-          image.sysdir.1=system-images/android-30/android-tv/x86_64/
-          tag.id=android-tv
-          tag.display=Android TV
+          image.sysdir.1=system-images/android-30/google_apis_video/x86_64/
+          tag.id=google_apis_video
+          tag.display=Google APIs Video
           hw.keyboard=yes
           hw.mainKeys=no
           hw.lcd.density=240
           hw.lcd.height=540
           hw.lcd.width=960
           EOF
+          
           echo "path=/home/runner/.android/avd/CloudAVD.avd" > ~/.android/avd/CloudAVD.ini
           echo "target=android-30" >> ~/.android/avd/CloudAVD.ini
 
       - name: Install Secure Web Streamer (noVNC)
         run: |
           sudo apt-get update
-          # FIXED: Explicitly installing x11vnc and novnc packages cleanly
+          # Installs the foundational X-window buffer and explicit streaming hooks
           sudo apt-get install -y xvfb x11vnc novnc websockify
           mkdir -p ~/.vnc
 
@@ -73,18 +77,18 @@ jobs:
           x11vnc -display :1 -nopw -listen localhost -shared -forever &
           sleep 3
           
-          # 3. Launch HTML5 Streamer with verified pathing
+          # 3. FIXED: Launch HTML5 Streamer using absolute global system application routes
           /usr/share/novnc/utils/novnc_proxy --vnc localhost:5900 --listen 6080 &
           sleep 3
           
-          # 4. FIXED PATH: Launches Android TV engine using explicit SDK paths
+          # 4. FIXED PATH: Launches Android TV engine using the validated system environment hook
           $ANDROID_HOME/emulator/emulator -avd CloudAVD -no-audio -no-boot-anim -accel on -gpu swiftshader_indirect -cores 4 -memory 4096 -qemu -cpu host &
           sleep 15
           
-          # 5. Continuous execution loop
+          # 5. Continuous execution loop triggers next run before timeout
           (sleep 21000 && gh workflow run "Ultimate Android TV ARM Emulator") & 
 
-          # 6. ESTABLISHES STABLE HTTPS VIA PINGGY WITHOUT RANDOM URLS
+          # 6. Opens a secure SSL connection tunnel bypassing random URL generation formats
           echo "=== CONNECTING ULTIMATE TV STREAM ==="
           while true; do
             ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -R nhbabcloudtv99:80:localhost:6080 a.pinggy.io +nd +g || true
