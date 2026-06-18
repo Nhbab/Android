@@ -3,55 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>My Cloud Android</title>
+    <title>nhbab Static Android WebAssembly</title>
     <style>
-        /* This makes the website layout completely normal and clean */
+        /* Natural mobile application layout */
         html, body {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
+            background-color: #000000;
             overflow: hidden;
-            background-color: #121212;
             font-family: system-ui, sans-serif;
         }
-        /* The emulator frame completely fills the website naturally */
-        iframe {
+        /* Hidden canvas matrix where Android is visually drawn */
+        #screen_container {
             width: 100%;
             height: 100%;
-            border: none;
-            display: block;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-        .loading-text {
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .status-overlay {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #aaaaaa;
+            color: #ffffff;
             font-size: 16px;
+            z-index: 10;
+            text-align: center;
         }
     </style>
+    <!-- Loads the pre-compiled WebAssembly x86 PC emulator engine -->
+    <script src="https://copy.sh"></script>
 </head>
 <body>
 
-    <div class="loading-text" id="status">Connecting to Cloud Phone...</div>
-    <iframe id="cloudScreen" src=""></iframe>
+    <div class="status-overlay" id="status_msg">Downloading Android OS to Browser Components...</div>
+    
+    <div id="screen_container">
+        <canvas id="screen"></canvas>
+    </div>
 
     <script>
-        // CHANGE THIS: Put your secret custom subdomain keyword here!
-        const SUBDOMAIN = "mycoolphone77"; 
+        window.onload = function() {
+            // Boot setup using an optimized lightweight Android-x86 image
+            var emulator = new V86Starter({
+                canvas: document.getElementById("screen"),
+                wasm_path: "https://copy.sh",
+                memory_size: 512 * 1024 * 1024, // Allocates 512MB RAM inside the sandbox
+                vga_memory_size: 16 * 1024 * 1024,
+                
+                // Pure static Android live operating system image
+                cdrom: {
+                    url: "https://archive.org"
+                },
+                autostart: true
+            });
 
-        // Automatically connects securely using your hidden password configuration
-        const targetUrl = `https://${SUBDOMAIN}.localhost.run?password=password123&autoconnect=true&resize=scale`;
-        
-        const iframe = document.getElementById('cloudScreen');
-        const statusText = document.getElementById('status');
-
-        iframe.src = targetUrl;
-
-        // Hide the loading text once the page structure connects
-        iframe.onload = function() {
-            statusText.style.display = 'none';
+            // Disables the text prompt once the system engine passes information to the canvas
+            emulator.add_listener("screen-fill", function() {
+                document.getElementById("status_msg").style.display = "none";
+            });
         };
     </script>
 </body>
