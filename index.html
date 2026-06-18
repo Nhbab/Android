@@ -5,42 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>nhbab Android TV Live Stream</title>
     <style>
-        html, body {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            overflow: hidden; background-color: #0d0d0d;
-            font-family: monospace; color: #00ffcc;
-        }
-        iframe {
-            width: 100%; height: 100%; border: none; display: block;
-        }
-        .status-container {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%); text-align: center;
-        }
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #0d0d0d; font-family: monospace; }
+        iframe { width: 100%; height: 100%; border: none; display: block; }
+        .retry-status { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #00ffcc; font-size: 16px; text-align: center; }
     </style>
 </head>
 <body>
 
-    <div class="status-container" id="statusBox">
-        <h2>CONNECTING TO HARDCODED CLOUD PIPELINE...</h2>
-        <p>Make sure you have clicked "Run workflow" in GitHub Actions.</p>
-    </div>
-
+    <div class="retry-status" id="statusMessage">CONNECTING TO STREAM DOMAIN... (Retrying automatically if offline)</div>
     <iframe id="tvStream" src=""></iframe>
 
     <script>
-        // Directly hooks into your server stream without needing GitHub secrets
-        const streamUrl = "https://pinggy.link";
-        
+        const targetUrl = "banister-reopen-savings.ngrok-free.dev";
         const frame = document.getElementById('tvStream');
-        const loader = document.getElementById('statusBox');
+        const statusEl = document.getElementById('statusMessage');
 
-        frame.src = streamUrl;
+        function loadStream() {
+            frame.src = targetUrl;
+        }
 
-        // Removes the text layout safely when the server feeds visual elements
+        // Fades loading dashboard elements once frames start rendering
         frame.onload = function() {
-            loader.style.display = 'none';
+            statusEl.style.display = 'none';
         };
+
+        // Self-Healing Trigger: Reloads if ngrok requires a few extra seconds to boot up
+        setInterval(function() {
+            try {
+                if (frame.contentWindow.length === 0) {
+                    loadStream();
+                }
+            } catch(e) {
+                // Ignore security block errors
+            }
+        }, 5000);
+
+        // Initial boot call
+        loadStream();
     </script>
 </body>
 </html>
