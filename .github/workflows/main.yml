@@ -62,14 +62,16 @@ jobs:
           sudo apt-get install -y xvfb x11vnc novnc websockify libpulse0 libgl1
           mkdir -p ~/.vnc
 
+      # FIXED: Uses your official, clean installation guide layout natively
       - name: Install and Authenticate Ngrok
         run: |
-          curl -s https://amazonaws.com | sudo gpg --dearmor -o /usr/share/keyrings/ngrok.gpg
-          echo "deb [signed-by=/usr/share/keyrings/ngrok.gpg] https://amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
-          sudo apt-get update && sudo apt-get install -y ngrok
+          curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com bookworm main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt update
+          sudo apt install -y ngrok
           
-          # HARDCODED FIX: Uses your permanent token bypass value natively
-          ngrok config add-authtoken rd_3FJNUZLuxuKSUetomzVf2PqUeHX
+          # Paste your actual private Ngrok Authtoken string token directly below:
+          ngrok config add-authtoken YOUR_ACTUAL_NGROK_AUTHTOKEN_HERE
 
       - name: Start TV Engine & Permanent Ngrok Tunnel
         run: |
@@ -93,7 +95,7 @@ jobs:
           # 5. Continuous execution loop triggers next run before timeout thresholds
           (sleep 21000 && gh workflow run "Ultimate Android TV ARM Emulator") & 
 
-          # 6. HARDCODED FIX: Points securely to your exact reserved ngrok domain layout parameters
+          # 6. Maps out securely to your specific personal domain profile
           echo "=== CONNECTING TO FIXED NGROK DOMAIN ENGINE ==="
           while true; do
             ngrok http 6080 --domain=banister-reopen-savings.ngrok-free.dev --log=stdout || true
