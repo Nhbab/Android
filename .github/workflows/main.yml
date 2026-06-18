@@ -1,4 +1,4 @@
-name: Run Flagship Cloud Android Emulator
+name: Ultimate Android TV Cloud Emulator
 on: 
   workflow_dispatch:
 
@@ -29,61 +29,67 @@ jobs:
       - name: Setup Android SDK Path
         uses: android-actions/setup-android@v3
 
-      - name: Download High-Performance Android System
+      - name: Download Android TV System Image
         run: |
-          sdkmanager "emulator" "system-images;android-29;google_apis;x86_64"
+          # Pulls the official high-definition Android TV build profile
+          sdkmanager "emulator" "system-images;android-29;android-tv;x86_64"
 
-      - name: Build Virtual Device with Max RAM Allocation
+      - name: Build Virtual TV Hardware Profile
         run: |
-          # 1. Clear out any previous partial builds
-          rm -rf ~/.android/avd/ || true
-          mkdir -p ~/.android/avd/
+          mkdir -p ~/.android/avd/CloudAVD.avd/
           
-          # 2. FIXED: Injects direct device type flags to completely bypass interactive prompts
-          echo "no" | avdmanager create avd -n CloudAVD -k "system-images;android-29;google_apis;x86_64" --device "generic_10" --force
-          
-          # 3. Securely look for the dynamic directory tree path
-          CONF_PATH=$(find ~/.android/avd/ -name "config.ini")
-          echo "Successfully verified configuration file path at: $CONF_PATH"
-          
-          # 4. Inject maximum performance parameters directly into the hardware configuration
-          echo "hw.ramSize=4096" >> "$CONF_PATH"
-          echo "hw.gpu.mode=host" >> "$CONF_PATH"
-          echo "vm.heapSize=512" >> "$CONF_PATH"
+          # Injecting widescreen smart-TV layout attributes
+          cat <<EOF > ~/.android/avd/CloudAVD.avd/config.ini
+          hw.cpu.arch=x86_64
+          hw.cpu.ncore=4
+          hw.ramSize=4096
+          hw.gpu.mode=host
+          hw.gpu.enabled=yes
+          vm.heapSize=512
+          image.sysdir.1=system-images/android-29/android-tv/x86_64/
+          tag.id=android-tv
+          tag.display=Android TV
+          hw.keyboard=yes
+          hw.mainKeys=no
+          hw.lcd.density=320
+          hw.lcd.height=720
+          hw.lcd.width=1280
+          EOF
 
+          # Bind the device properties configuration pointers
+          echo "path=/home/runner/.android/avd/CloudAVD.avd" > ~/.android/avd/CloudAVD.ini
+          echo "target=android-29" >> ~/.android/avd/CloudAVD.ini
 
-      - name: Install VNC Desktop & Web Streamer
+      - name: Install Ultimate Tiny Desktop Canvas
         run: |
           sudo apt-get update
-          sudo apt-get install -y xfce4 xfce4-goodies tightvncserver novnc websockify
+          sudo apt-get install -y tightvncserver novnc websockify
           mkdir -p ~/.vnc
           echo "password123" | vncpasswd -f > ~/.vnc/passwd
           chmod 600 ~/.vnc/passwd
 
-      - name: Start Services & Persistent Network Pipe
+      - name: Start TV Engine & Persistent Network Pipe
         env:
           SUB_NAME: ${{ secrets.MY_SUBDOMAIN }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          # 1. Start internal desktop canvas
+          # 1. Initialize custom canvas corresponding to a 16:9 widescreen TV output
           vncserver :1 -geometry 1280x720 -depth 16
           
-          # 2. Convert raw server display data into interactive web canvas streams
+          # 2. Bind WebSocket network pipelines
           /usr/share/novnc/utils/launch.sh --vnc localhost:5901 --listen 6080 &
           
-          # 3. Boot flagship-tweaked Android emulator using all 4 multi-threaded cores
-          DISPLAY=:1 emulator -avd CloudAVD -no-audio -no-boot-anim -accel on -gpu swiftshader_indirect -cores 4 -memory 4096 &
+          # 3. Boot Android TV core engine
+          DISPLAY=:1 emulator -avd CloudAVD -no-audio -no-boot-anim -accel on -gpu swiftshader_indirect -cores 4 -memory 4096 -qemu -cpu host &
           
-          # 4. Wait for system initialization
           sleep 15
           
-          # 5. Automatically fires a new session 10 minutes prior to GitHub's 6-hour strict cutoff limit
-          (sleep 21000 && gh workflow run "Run Flagship Cloud Android Emulator") & 
+          # 4. Automate continuous cloud runtime execution loops
+          (sleep 21000 && gh workflow run "Ultimate Android TV Cloud Emulator") & 
 
-          # 6. Infinite fallback connection structure eliminates "exit 1" errors
-          echo "=== CONNECTING SECURE TUNNEL ==="
+          # 5. Open the web interface tunnel pipeline
+          echo "=== CONNECTING ULTIMATE TV STREAM ==="
           while true; do
             ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -y -R ${SUB_NAME}:80:localhost:6080 nokey@localhost.run || true
-            echo "Tunnel disconnected. Reconnecting in 5 seconds..."
             sleep 5
           done
