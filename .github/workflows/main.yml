@@ -1,15 +1,12 @@
-name: Android TV Remote Control CI
+name: Android TV Web Remote (noVNC)
 
 on:
-  push:
-    branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
+  workflow_dispatch: # Cho phép bạn bấm nút "Run workflow" thủ công trên giao diện GitHub
 
 jobs:
-  android-tv-virtual-machine:
+  run-tv-novnc:
     runs-on: macos-latest
-    timeout-minutes: 25
+    timeout-minutes: 120 # Máy ảo sẽ tự tắt sau 2 tiếng để bảo vệ tài nguyên của bạn
 
     steps:
     - name: Checkout Code
@@ -21,70 +18,50 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Setup Gradle Cache
-      uses: gradle/actions/setup-gradle@v4
+    # Bước 1: Cài đặt TigerVNC (Thay thế hoàn hảo cho vnc4server đã lỗi thời)
+    - name: Install TigerVNC
+      run: |
+        brew install tiger-vnc
+        
+    # Bước 2: Tải và thiết lập cấu hình noVNC mã nguồn mở
+    - name: Install noVNC
+      run: |
+        git clone https://github.com $HOME/noVNC
+        git clone https://github.com $HOME/noVNC/utils/websockify
 
-    - name: Grant Execute Permission for Gradlew
-      run: chmod +x gradlew
-
-    # BẮT ĐẦU CHẠY MÁY ẢO VÀ ĐIỀU KHIỂN REMOTE
-    - name: Run Android TV VM & Control Remote
+    # Bước 3: Khởi chạy Máy ảo Android TV chạy ngầm
+    - name: Launch Android TV Emulator
       uses: ReactiveCircus/android-emulator-runner@v2
       with:
         api-level: 30
         target: android-tv
         arch: x86_64
         profile: tv_1080p
-        force-avd-creation: true
         disable-animations: true
-        emulator-options: -no-window -no-audio -no-boot-anim -camera-back none
+        emulator-options: -no-audio -no-boot-anim -camera-back none
         
+        # Chúng ta khởi động VNC và giữ luồng kết nối ngay bên trong script chạy máy ảo
         script: |
-          echo "==== MÁY ẢO ANDROID TV ĐÃ KHỞI ĐỘNG XONG ===="
+          echo "==== Khởi động Android TV thành công ===="
+          sleep 20
           
-          # Đợi hệ thống ổn định hoàn toàn trong 10 giây
-          sleep 10
+          # Thiết lập mật khẩu mặc định cho VNC là: 123456
+          mkdir -p ~/.vnc
+          echo "123456" | vncpasswd -f > ~/.vnc/passwd
+          chmod 600 ~/.vnc/passwd
           
-          echo "==== ĐANG THỰC HIỆN ĐIỀU KHIỂN REMOTE TV (ADB KEYEVENTS) ===="
+          # Chạy TigerVNC Server trên cổng :1 (Port hệ thống: 5901)
+          vncserver :1 -geometry 1280x720 -depth 24
           
-          # 1. Bấm nút HOME để đảm bảo đang ở màn hình chính Android TV
-          adb shell input keyevent 3
-          sleep 2
-          
-          # 2. Giả lập bấm nút XUỐNG (DPAD_DOWN) trên Remote
-          echo "-> Bấm nút Xuống"
-          adb shell input keyevent 20
-          sleep 1
-          
-          # 3. Giả lập bấm nút PHẢI (DPAD_RIGHT) để di chuyển qua các ứng dụng
-          echo "-> Bấm nút Phải"
-          adb shell input keyevent 22
-          sleep 1
-          
-          # 4. Giả lập bấm nút OK / ENTER (DPAD_CENTER) để chọn
-          echo "-> Bấm nút OK"
-          adb shell input keyevent 23
-          sleep 3
-          
-          # 5. Mở trực tiếp ứng dụng TV của bạn (Thay 'com.example.tvapp' bằng package_id của bạn)
-          # Nếu bạn chưa build app, lệnh này sẽ báo lỗi nhẹ nhưng không làm sập quy trình CI
-          echo "-> Đang khởi chạy ứng dụng TV của bạn..."
-          adb shell monkey -p com.example.tvapp -c android.intent.category.LAUNCHER 1 || true
+          # Khởi chạy noVNC để đổi cổng 5901 thành cổng Web công cộng 6080
+          echo "==== Đang kích hoạt cổng noVNC HTML5 (Port 6080) ===="
+          $HOME/noVNC/utils/novnc_proxy --vnc localhost:5901 --listen 6080 &
           sleep 5
           
-          # 6. Bấm nút QUAY LẠI (BACK) trên Remote
-          echo "-> Bấm nút Quay lại"
-          adb shell input keyevent 4
-          sleep 1
-
-          echo "==== CHỤP ẢNH MÀN HÌNH ĐỂ KIỂM TRA KẾT QUẢ ĐIỀU KHIỂN ===="
-          # Chụp ảnh màn hình TV hiện tại và lưu vào thư mục máy chủ
-          adb shell screencap -p /sdcard/tv_screen.png
-          adb pull /sdcard/tv_screen.png .
-
-    # BƯỚC XUẤT ẢNH: Đẩy ảnh chụp màn hình TV lên tab Artifact của GitHub để bạn tải về xem
-    - name: Upload TV Screen Result
-      uses: actions/upload-artifact@v4
-      with:
-        name: tv-remote-control-screenshot
-        path: tv_screen.png
+          # Sử dụng giải pháp Tunnel miễn phí không cần tài khoản (Pinggy) để xuất cổng 6080 ra Internet
+          echo "================================================================="
+          echo "XEM LIÊN KẾT ĐƯỜNG TRUYỀN CÔNG CỘNG CỦA BẠN DƯỚI ĐÂY:"
+          echo "================================================================="
+          
+          # Lệnh này sẽ mở cổng và giữ máy ảo luôn sống (Keep Alive)
+          ssh -p 443 -R0:localhost:6080 -o StrictHostKeyChecking=no -o ServerAliveInterval=30 a.pinggy.io
