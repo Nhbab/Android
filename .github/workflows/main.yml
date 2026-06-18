@@ -1,15 +1,17 @@
 name: 📱 Run Compose Phone on GitHub
 
 on:
-  workflow_dispatch: # 👈 Enables the run button on your phone screen
+  workflow_dispatch: # 👈 Lets you tap the run button from your phone screen
 
 jobs:
   launch-compose:
-    runs-on: ubuntu-latest # 👈 GitHub hosts this machine for free
+    runs-on: ubuntu-latest
 
     steps:
     - name: 📂 Pull Code Repo
       uses: actions/checkout@v4
+      with:
+        path: Android # 👈 Forces GitHub to lock the path name safely
 
     - name: 🛠️ Load Android Kernel Drivers
       run: |
@@ -17,20 +19,28 @@ jobs:
 
     - name: 🚀 Start System with Docker Compose
       run: |
-        # Force the runner to check if the file exists before starting
+        # 1. Force the runner to navigate inside your 'Android' repository folder
+        cd Android
+        
+        # 2. Check the files to ensure docker-compose.yml is here
         ls -la
-        docker compose -f ./docker-compose.yml up -d
-
+        
+        # 3. Pull and launch your mobile core containers
+        docker compose up -d
 
     - name: 🌐 Print Public Web URL
       run: |
+        # Force the logger to look inside the active 'Android' repository directory
+        cd Android
+        
         echo "⏰ Waiting 10 seconds for initialization..."
         sleep 10
         echo "=========================================================="
         echo "👇 OPEN THIS WEBSITE LINK ON YOUR PHONE TO CONTROL IT:"
         echo "=========================================================="
-        # Grabs the live running log frames out of your compose layout tunnel
+        
+        # Pulls your free live URL stream straight out of the active network container
         docker compose logs public-tunnel 2>&1 | grep -o 'https://.*\.trycloudflare\.com' | head -n 1
         
-        # Holds the free session awake for 6 hours
+        # Keeps your GitHub action server hosting active for 6 hours
         sleep 21600
