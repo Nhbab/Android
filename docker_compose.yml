@@ -1,0 +1,40 @@
+version: '3'
+
+services:
+  # 1. The Virtual Android System
+  android-core:
+    image: redroid/redroid:13.0.0-latest
+    container_name: android_device
+    privileged: true
+    volumes:
+      - ./android_data:/data
+    # Port 5555 is handled internally for security
+    expose:
+      - "5555"
+    command:
+      - androidboot.use_redroid_stream=1
+      - redroid.gpu.mode=guest
+    restart: unless-stopped
+
+  # 2. The Web Browser Streaming Engine
+  web-ui:
+    image: shmayro/scrcpy-web:latest
+    container_name: android_web_ui
+    expose:
+      - "8000"
+    depends_on:
+      - android-core
+    # Connects the internal browser streamer to the Android engine
+    command: sh -c "adb connect android-core:5555 && npm start"
+    restart: unless-stopped
+
+  # 3. The Free Public URL Generator
+  public-url:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflare_tunnel
+    restart: unless-stopped
+    depends_on:
+      - web-ui
+    # Requests a free, randomized public URL routing to port 8000
+    command: tunnel --no-autoupdate run --url http://web-ui:8000
+    
