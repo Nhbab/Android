@@ -31,24 +31,24 @@ jobs:
 
       - name: Download Android TV System Image
         run: |
-          # FIXED PACKAGE PATH: Fetches the correct Android 10 Google TV image layout
-          sdkmanager "emulator" "system-images;android-29;google_apis_video;x86_64"
+          # FIXED PACKAGE PATH: Fetches the verified Android TV 10 engine image repository
+          sdkmanager "emulator" "system-images;android-29;android-tv;x86"
 
       - name: Build Virtual TV Hardware Profile
         run: |
           mkdir -p ~/.android/avd/CloudAVD.avd/
           
-          # Injecting widescreen smart-TV architecture elements into the manual ini file
+          # Injecting widescreen smart-TV architecture layout files to bypass interactive prompts
           cat <<EOF > ~/.android/avd/CloudAVD.avd/config.ini
-          hw.cpu.arch=x86_64
+          hw.cpu.arch=x86
           hw.cpu.ncore=4
           hw.ramSize=4096
           hw.gpu.mode=host
           hw.gpu.enabled=yes
           vm.heapSize=512
-          image.sysdir.1=system-images/android-29/google_apis_video/x86_64/
-          tag.id=google_apis_video
-          tag.display=Google APIs Video
+          image.sysdir.1=system-images/android-29/android-tv/x86/
+          tag.id=android-tv
+          tag.display=Android TV
           hw.keyboard=yes
           hw.mainKeys=no
           hw.lcd.density=320
@@ -79,7 +79,7 @@ jobs:
           # 2. Bind WebSocket network pipelines
           /usr/share/novnc/utils/launch.sh --vnc localhost:5901 --listen 6080 &
           
-          # 3. Boot Android TV core engine using strict emulator runtime flags
+          # 3. Boot Android TV core engine using precise x86 rendering arguments
           DISPLAY=:1 emulator -avd CloudAVD -no-audio -no-boot-anim -accel on -gpu swiftshader_indirect -cores 4 -memory 4096 -qemu -cpu host &
           
           sleep 15
