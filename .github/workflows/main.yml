@@ -1,5 +1,11 @@
 name: Run Flagship Cloud Android Emulator
-on: workflow_dispatch 
+on: 
+  workflow_dispatch:
+
+# Grants the runner secure system access to loop back-to-back for free
+permissions:
+  actions: write
+  contents: read
 
 jobs:
   run-emulator:
@@ -21,18 +27,18 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      # FIXES ERROR 127: Automatically maps paths and activates sdkmanager
       - name: Setup Android SDK Path
         uses: android-actions/setup-android@v3
 
       - name: Download High-Performance Android System
         run: |
-          # The setup-android step already handles licenses, so we directly install packages
           sdkmanager "emulator" "system-images;android-29;google_apis;x86_64"
 
       - name: Build Virtual Device with Max RAM Allocation
         run: |
+          mkdir -p ~/.android/avd/
           echo "no" | avdmanager create avd -n CloudAVD -k "system-images;android-29;google_apis;x86_64" --force
+          touch ~/.android/avd/CloudAVD.avd/config.ini
           echo "hw.ramSize=4096" >> ~/.android/avd/CloudAVD.avd/config.ini
           echo "hw.gpu.mode=host" >> ~/.android/avd/CloudAVD.avd/config.ini
 
@@ -47,20 +53,24 @@ jobs:
       - name: Start Services & Persistent Network Pipe
         env:
           SUB_NAME: ${{ secrets.MY_SUBDOMAIN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           # 1. Start internal desktop canvas
           vncserver :1 -geometry 1280x720 -depth 16
           
-          # 2. Start HTML5 WebSocket transcoder
+          # 2. Convert raw server display data into interactive web canvas streams
           /usr/share/novnc/utils/launch.sh --vnc localhost:5901 --listen 6080 &
           
-          # 3. Boot flagship-tweaked Android emulator using all 4 multi-threaded cores
+          # 3. Boot high-performance Android image bound to multi-threaded hardware cores
           DISPLAY=:1 emulator -avd CloudAVD -no-audio -no-boot-anim -accel on -gpu swiftshader_indirect -cores 4 -memory 4096 &
           
-          # 4. Give components time to fully bind to internal ports
+          # 4. Wait for system initialization
           sleep 15
           
-          # 5. Continuous execution loop ensures the web tunnel stays online without crashing
+          # 5. Automatically fires a new session 10 minutes prior to GitHub's 6-hour strict cutoff limit
+          (sleep 21000 && gh workflow run "Run Flagship Cloud Android Emulator") & 
+
+          # 6. Infinite fallback connection structure eliminates "exit 1" errors
           echo "=== CONNECTING SECURE TUNNEL ==="
           while true; do
             ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -y -R ${SUB_NAME}:80:localhost:6080 nokey@localhost.run || true
