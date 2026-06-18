@@ -29,28 +29,25 @@ jobs:
       - name: Setup Android SDK Path
         uses: android-actions/setup-android@v3
 
-      # FIXED CORE CRASH: Clears, forces channel lookups, and pulls the authentic image
+      # FIXED CORE CRASH: Uses the verified Android TV 11 package name syntax structure
       - name: Download Android TV Image
         run: |
-          # 1. Update the SDK tools listing channel registry indices to sync available links
           sdkmanager --update
-          
-          # 2. Pull the canonical Android 11 Android TV system image asset
-          sdkmanager "emulator" "system-images;android-30;android-tv;x86_64"
+          sdkmanager "emulator" "system-images;android-30;android-tv;x86"
 
       - name: Build Virtual TV Hardware Profile
         run: |
           mkdir -p ~/.android/avd/CloudAVD.avd/
           
-          # Sets up the custom smart TV specifications layout manually
+          # Sets up the custom smart TV specifications layout manually matching x86 paths
           cat <<EOF > ~/.android/avd/CloudAVD.avd/config.ini
-          hw.cpu.arch=x86_64
+          hw.cpu.arch=x86
           hw.cpu.ncore=4
           hw.ramSize=4096
           hw.gpu.mode=host
           hw.gpu.enabled=yes
           vm.heapSize=512
-          image.sysdir.1=system-images/android-30/android-tv/x86_64/
+          image.sysdir.1=system-images/android-30/android-tv/x86/
           tag.id=android-tv
           tag.display=Android TV
           hw.keyboard=yes
@@ -66,7 +63,6 @@ jobs:
       - name: Install Secure Web Streamer (noVNC)
         run: |
           sudo apt-get update
-          # Automatically ensures virtual x11 components map to global server bins cleanly
           sudo apt-get install -y xvfb x11vnc novnc websockify
           mkdir -p ~/.vnc
 
@@ -81,11 +77,11 @@ jobs:
           x11vnc -display :1 -nopw -listen localhost -shared -forever &
           sleep 3
           
-          # 3. FIXED: Map system proxy links to run novnc proxy tool directly without crashing
+          # 3. Map proxy links to run the streaming tool natively without crash pathing
           python3 -m websockify --web /usr/share/novnc/ 6080 localhost:5900 &
           sleep 3
           
-          # 4. FIXED BINARY PATH: Invokes the emulator from its exact global variables location path
+          # 4. Invokes the emulator from its absolute directory location matching the x86 structure
           $ANDROID_HOME/emulator/emulator -avd CloudAVD -no-audio -no-boot-anim -accel on -gpu swiftshader_indirect -cores 4 -memory 4096 -qemu -cpu host &
           sleep 15
           
