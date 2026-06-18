@@ -1,32 +1,67 @@
-name: Run Android 16 Cloud VM
+name: Deploy Error-Free Android VM
 on: 
   workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
 
+permissions:
+  contents: write # Grants the runner permission to update config.js automatically
+
 jobs:
-  run-emulator:
-    # Use macos-14 or macos-latest for Apple Silicon acceleration
-    runs-on: macos-14 
+  boot-virtual-machine:
+    runs-on: macos-14 # Required for Apple Silicon hardware acceleration
     steps:
-      - name: Checkout Code
+      - name: Checkout Repository Code
         uses: actions/checkout@v4
 
-      - name: Set up Java
+      - name: Initialize OpenJDK Environment
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Install and Run Android 16 Emulator
+      - name: Provision Display Server & Routing Tooling
+        run: |
+          brew install tigervnc novnc
+          npm install -g localtunnel
+
+      - name: Launch Android VM & Auto-Publish Link
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36        # API 36 corresponds to Android 16
-          target: google_apis  # Includes official Google APIs
-          arch: aarch64        # Use ARM64 architecture to match macOS-14 M-series chips
-          profile: Pixel_8     # A modern profile compatible with Android 16 requirements
+          target: google_apis  
+          arch: aarch64        # Matches the macOS ARM64 runner architecture
+          profile: Pixel_8     
           script: |
-            echo "Android 16 Virtual Machine is booted and running!"
-            adb devices
+            echo "1. Initializing VNC display matrix environment..."
+            vncserver :1 -geometry 1280x720 -depth 24 -SecurityTypes None
             
-            # Keep the VM alive for your tests (up to 6 hours max)
-            # Change this number to control how long the machine stays running
-            sleep 21600 
+            echo "2. Transforming video data to browser socket..."
+            novnc_proxy --vnc localhost:5901 --listen 6080 &
+            
+            echo "3. Publishing live tunnel..."
+            # Route output log to a text file to capture the url dynamically
+            lt --port 6080 > tunnel_log.txt &
+            
+            echo "4. Extracting and pushing link to GitHub Pages..."
+            # Wait a few seconds for the network tunnel link to generate
+            sleep 10
+            TUNNEL_URL=$(grep -o 'https://[^ ]*' tunnel_log.txt | head -n 1)
+            
+            if [ -n "$TUNNEL_URL" ]; then
+              echo "Found Live URL: $TUNNEL_URL"
+              # Write the variable directly into the javascript file
+              echo "const LIVE_VM_URL = '$TUNNEL_URL';" > config.js
+              
+              # Automatically commit and push the updated config to GitHub
+              git config --global user.name "github-actions[bot]"
+              git config --global user.email "github-actions[bot]@://github.com"
+              git add config.js
+              git commit -m "docs: auto-update live Android VM link [skip ci]"
+              git push
+            else
+              echo "Failed to retrieve tunnel endpoint."
+              echo "const LIVE_VM_URL = '';" > config.js
+            fi
+            
+            echo "5. Keeping Android 16 Virtual Machine open..."
+            adb devices
+            sleep 21600 # Keeps the cloud VM open for 6 hours
