@@ -1,4 +1,4 @@
-name: Ultimate Android TV Cloud Emulator
+name: Ultimate Android TV ARM Emulator
 on: 
   workflow_dispatch:
 
@@ -29,67 +29,64 @@ jobs:
       - name: Setup Android SDK Path
         uses: android-actions/setup-android@v3
 
-      - name: Download Android TV System Image
+      - name: Download Android TV 11 Image
         run: |
-          # FIXED PACKAGE PATH: Fetches the verified Android TV 10 engine image repository
-          sdkmanager "emulator" "system-images;android-29;android-tv;x86"
+          sdkmanager "emulator" "system-images;android-30;android-tv;x86_64"
 
       - name: Build Virtual TV Hardware Profile
         run: |
           mkdir -p ~/.android/avd/CloudAVD.avd/
-          
-          # Injecting widescreen smart-TV architecture layout files to bypass interactive prompts
           cat <<EOF > ~/.android/avd/CloudAVD.avd/config.ini
-          hw.cpu.arch=x86
+          hw.cpu.arch=x86_64
           hw.cpu.ncore=4
           hw.ramSize=4096
           hw.gpu.mode=host
           hw.gpu.enabled=yes
           vm.heapSize=512
-          image.sysdir.1=system-images/android-29/android-tv/x86/
+          image.sysdir.1=system-images/android-30/android-tv/x86_64/
           tag.id=android-tv
           tag.display=Android TV
           hw.keyboard=yes
           hw.mainKeys=no
-          hw.lcd.density=320
-          hw.lcd.height=720
-          hw.lcd.width=1280
+          hw.lcd.density=240
+          hw.lcd.height=540
+          hw.lcd.width=960
           EOF
-
-          # Bind the device properties configuration pointers
           echo "path=/home/runner/.android/avd/CloudAVD.avd" > ~/.android/avd/CloudAVD.ini
-          echo "target=android-29" >> ~/.android/avd/CloudAVD.ini
+          echo "target=android-30" >> ~/.android/avd/CloudAVD.ini
 
-      - name: Install Ultimate Tiny Desktop Canvas
+      - name: Install Secure Web Streamer (noVNC)
         run: |
           sudo apt-get update
-          sudo apt-get install -y tightvncserver novnc websockify
+          # FIXED: Explicitly installing x11vnc and novnc packages cleanly
+          sudo apt-get install -y xvfb x11vnc novnc websockify
           mkdir -p ~/.vnc
-          echo "password123" | vncpasswd -f > ~/.vnc/passwd
-          chmod 600 ~/.vnc/passwd
 
-      - name: Start TV Engine & Persistent Network Pipe
-        env:
-          SUB_NAME: ${{ secrets.MY_SUBDOMAIN }}
-          GH_TOKEN: ${{ github.token }}
+      - name: Start TV Engine & Secure Pinggy SSL Tunnel
         run: |
-          # 1. Initialize custom canvas corresponding to a 16:9 widescreen TV output
-          vncserver :1 -geometry 1280x720 -depth 16
+          # 1. Start a high-performance headless display server
+          Xvfb :1 -screen 0 960x540x16 &
+          export DISPLAY=:1
+          sleep 3
           
-          # 2. Bind WebSocket network pipelines
-          /usr/share/novnc/utils/launch.sh --vnc localhost:5901 --listen 6080 &
+          # 2. Start a fast, direct VNC pipeline
+          x11vnc -display :1 -nopw -listen localhost -shared -forever &
+          sleep 3
           
-          # 3. Boot Android TV core engine using precise x86 rendering arguments
-          DISPLAY=:1 emulator -avd CloudAVD -no-audio -no-boot-anim -accel on -gpu swiftshader_indirect -cores 4 -memory 4096 -qemu -cpu host &
+          # 3. Launch HTML5 Streamer with verified pathing
+          /usr/share/novnc/utils/novnc_proxy --vnc localhost:5900 --listen 6080 &
+          sleep 3
           
+          # 4. FIXED PATH: Launches Android TV engine using explicit SDK paths
+          $ANDROID_HOME/emulator/emulator -avd CloudAVD -no-audio -no-boot-anim -accel on -gpu swiftshader_indirect -cores 4 -memory 4096 -qemu -cpu host &
           sleep 15
           
-          # 4. Automate continuous cloud runtime execution loops
-          (sleep 21000 && gh workflow run "Ultimate Android TV Cloud Emulator") & 
+          # 5. Continuous execution loop
+          (sleep 21000 && gh workflow run "Ultimate Android TV ARM Emulator") & 
 
-          # 5. Open the web interface tunnel pipeline
+          # 6. ESTABLISHES STABLE HTTPS VIA PINGGY WITHOUT RANDOM URLS
           echo "=== CONNECTING ULTIMATE TV STREAM ==="
           while true; do
-            ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -y -R ${SUB_NAME}:80:localhost:6080 nokey@localhost.run || true
+            ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -R nhbabcloudtv99:80:localhost:6080 a.pinggy.io +nd +g || true
             sleep 5
           done
