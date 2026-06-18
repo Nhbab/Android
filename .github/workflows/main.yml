@@ -17,8 +17,10 @@ jobs:
 
     - name: 🚀 Start System with Docker Compose
       run: |
-        # Tells Docker Compose to pull and run all components in the background
-        docker compose up -d
+        # Force the runner to check if the file exists before starting
+        ls -la
+        docker compose -f ./docker-compose.yml up -d
+
 
     - name: 🌐 Print Public Web URL
       run: |
