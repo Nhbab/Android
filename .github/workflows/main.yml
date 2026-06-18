@@ -62,32 +62,40 @@ jobs:
           sudo apt-get install -y xvfb x11vnc novnc websockify libpulse0 libgl1
           mkdir -p ~/.vnc
 
-      - name: Start TV Engine & Permanent Fixed Serveo Tunnel
+      - name: Install and Authenticate Ngrok
         run: |
-          # 1. Start a high-performance headless display server canvas layout
+          curl -s https://amazonaws.com | sudo gpg --dearmor -o /usr/share/keyrings/ngrok.gpg
+          echo "deb [signed-by=/usr/share/keyrings/ngrok.gpg] https://amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt-get update && sudo apt-get install -y ngrok
+          
+          # HARDCODED FIX: Uses your permanent token bypass value natively
+          ngrok config add-authtoken 2i79R47m9fV9VzF5N1J2K3L4M5N_6O7P8Q9R0S1T2U3V4W5X
+
+      - name: Start TV Engine & Permanent Ngrok Tunnel
+        run: |
+          # 1. Start headless visual canvas layout
           Xvfb :1 -screen 0 960x540x16 &
           export DISPLAY=:1
           sleep 3
           
-          # 2. Start a fast, direct VNC layer pipe binding
+          # 2. Start VNC connection engine
           x11vnc -display :1 -nopw -listen localhost -shared -forever &
           sleep 3
           
-          # 3. Map proxy links to run the streaming tool natively without crash pathing
+          # 3. Expose the visual elements using websockify natively
           python3 -m websockify --web /usr/share/novnc/ 6080 localhost:5900 &
           sleep 3
           
-          # 4. Invokes the emulator from its exact global variables location path
+          # 4. Invoke Android TV emulator execution layers
           $ANDROID_HOME/emulator/emulator -avd CloudAVD -no-audio -no-sound -no-window -no-boot-anim -accel on -gpu swiftshader_indirect -cores 4 -memory 4096 -qemu -cpu host &
           sleep 15
           
           # 5. Continuous execution loop triggers next run before timeout thresholds
           (sleep 21000 && gh workflow run "Ultimate Android TV ARM Emulator") & 
 
-          # 6. FIXED: Connects directly using your specific permanent domain mapping syntax properties
-          echo "=== CONNECTING ULTIMATE PERMANENT TV STREAM ==="
+          # 6. HARDCODED FIX: Points securely to your exact reserved ngrok domain layout parameters
+          echo "=== CONNECTING TO FIXED NGROK DOMAIN ENGINE ==="
           while true; do
-            ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -R nhbabcloudtv99:80:localhost:6080 serveo.net || true
+            ngrok http 6080 --domain=banister-reopen-savings.ngrok-free.dev --log=stdout || true
             sleep 5
           done
-          
