@@ -13,7 +13,7 @@ jobs:
       - name: Install QEMU, noVNC, and Utilities
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 qemu-utils wget adb novnc websockify netcat-traditional
+          sudo apt-get install -y qemu-system-x86 qemu-utils wget adb novnc websockify
 
       - name: Download GTV14 Android TV ISO
         run: |
@@ -49,9 +49,17 @@ jobs:
           echo "Waiting 10 seconds for the boot screen to completely settle..."
           sleep 10
           
-          echo "Injecting return key over clean network port..."
-          # Fixed syntax: added the -p flag to explicitly define the port for netcat
-          printf "\n\nsendkey ret\n" | nc 127.0.0.1 -p 4444
+          echo "Injecting return key via Python socket interface..."
+          # Using Python ensures 100% compatibility across all systems without netcat errors
+          python3 -c '
+          import socket, time
+          s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+          s.connect(("127.0.0.1", 4444))
+          time.sleep(0.5)
+          s.sendall(b"\n\nsendkey ret\n")
+          time.sleep(0.5)
+          s.close()
+          '
           echo "Boot selection delivered cleanly."
 
       - name: Start Websockify (VNC to WebSockets)
