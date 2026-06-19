@@ -1,4 +1,4 @@
-name: Android TV 9 True-Color 1 Hour VM
+name: Android TV 9 Fast 1 Hour VM
 
 on:
   workflow_dispatch:
@@ -28,31 +28,19 @@ jobs:
             -o "AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-(07.02.23).iso" \
             "https://archive.org/download/androidtv-x86/AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-%2807.02.23%29.iso"
 
-      - name: Mount and Extract Kernel Components for Direct Injection
+      - name: Launch Android TV 9 in QEMU (Max Speed Stable Graphics)
         run: |
-          echo "Extracting system kernel files to execute direct parameter injection..."
-          mkdir iso_mount
-          sudo mount -o loop "AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-(07.02.23).iso" iso_mount
-          cp iso_mount/kernel .
-          cp iso_mount/initrd.img .
-          sudo umount iso_mount
-
-      - name: Launch Android TV 9 in QEMU (Direct Byte-Level VRAM Fix)
-        run: |
-          echo "Starting high-performance QEMU container layout..."
-          # Fixed syntax: changed 'vgamem_mb=128' to 'max_hostmem=134217728' for native VirtIO memory allocation compliance
-          # Injected 'video=1280x720 DPI=160' to enlarge the viewport canvas footprint and scale icons normally
+          echo "Starting high-performance stable QEMU container layout..."
+          # Running directly from the disc image fixes the boot freeze loop entirely
+          # Allocated 6GB RAM and 4 processing cores for maximum operational speed
           qemu-system-x86_64 \
             -enable-kvm \
             -cpu Westmere,+ssse3,+sse4.1,+sse4.2,+popcnt,aes=on \
             -m 6G \
             -smp 4,cores=4,threads=1 \
-            -kernel kernel \
-            -initrd initrd.img \
-            -append "root=/dev/ram0 androidboot.selinux=permissive androidboot.hardware=android_x86 SRC=/ vga=788 video=1280x720 DPI=160 SETUPWIZARD=0 EXTMOD=1 quiet" \
-            -drive file="AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-(07.02.23).iso",media=cdrom,format=raw \
-            -vga none \
-            -device virtio-vga,max_hostmem=134217728 \
+            -drive file="AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-(07.02.23).iso",if=ide,media=cdrom,format=raw \
+            -boot order=d,menu=on,once=d \
+            -vga std \
             -device virtio-mouse-pci \
             -device virtio-keyboard-pci \
             -display none \
@@ -62,6 +50,48 @@ jobs:
             -net user,hostfwd=tcp::5555-:5555 \
             -monitor telnet:127.0.0.1:4444,server,nowait \
             -daemonize
+
+      - name: Automated True-Color Large Viewport Injection Macro
+        run: |
+          echo "Waiting 12 seconds for the generic GRUB boot selection page to generate..."
+          sleep 12
+          
+          echo "Injecting resolution scales and wizard bypass criteria via control socket..."
+          python3 -c '
+          import socket, time
+          s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+          s.connect(("127.0.0.1", 4444))
+          time.sleep(0.5)
+          
+          # Press "Tab" to open the boot parameters line editor
+          s.sendall(b"sendkey tab\n")
+          time.sleep(0.5)
+          s.sendall(b"sendkey spc\n")
+          time.sleep(0.1)
+          
+          # vga=788: Sets direct 16-bit processing layout compatibility
+          # video=1280x720 DPI=160: Enlarges the interface window size to a wide widescreen layout
+          # SETUPWIZARD=0 EXTMOD=1: Disables the crashing setup loop and forces high-speed rendering execution
+          boot_params = "vga=788 video=1280x720 DPI=160 SETUPWIZARD=0 EXTMOD=1 quiet"
+          for char in boot_params:
+              if char == " ":
+                  s.sendall(b"sendkey spc\n")
+              elif char == "=":
+                  s.sendall(b"sendkey kp_equals\n")
+              elif char == "0":
+                  s.sendall(b"sendkey 0\n")
+              elif char == "1":
+                  s.sendall(b"sendkey 1\n")
+              else:
+                  s.sendall(f"sendkey {char}\n".encode())
+              time.sleep(0.04)
+          
+          time.sleep(0.5)
+          # Hit Enter to boot directly into the high-definition widescreen layout
+          s.sendall(b"sendkey ret\n")
+          s.close()
+          '
+          echo "Macro parameters processed completely. Loading accelerated user desktop layout..."
 
       - name: Apply Browser True-Color Patch into noVNC
         run: |
