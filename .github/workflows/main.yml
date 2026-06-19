@@ -1,34 +1,34 @@
-name: GTV14 Android TV VM (Fully Fixed)
+name: GTV14 Android TV (Live 1 Hour noVNC)
 
 on:
   workflow_dispatch:
 
 jobs:
-  run-gtv14-vm:
+  run-1hour-tv:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install QEMU and Network Utilities
+      - name: Install QEMU, noVNC, and Utilities
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 qemu-utils adb netcat-openbsd
+          sudo apt-get install -y qemu-system-x86 qemu-utils wget adb novnc websockify netcat-openbsd
 
-      - name: Download GTV14 Android TV ISO (Browser Spoof)
+      - name: Download GTV14 Android TV ISO
         run: |
-          echo "Downloading ISO with fake browser header to bypass 403 blocks..."
+          echo "Downloading ISO using browser bypass..."
           curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
             -o gtv14_atv.iso \
-            "https://downloads.sourceforge.net/project/androidtv-x86-64/GTV14/GTV14-x86_64-MRDTeam-V26T-260520.iso?ts=gAAAAABqNKI3177yBBdHqQsWOt747oDBhsLD_8oi50um_BIYhlvpXY_blf_fEW9bXND-RcAPRNp12tirUOZpsOrlnN_j_8GhKw%3D%3D&r=https%3A%2F%2Fsourceforge.net%2Fprojects%2Fandroidtv-x86-64%2Ffiles%2FGTV14%2FGTV14-x86_64-MRDTeam-V26T-260520.iso%2Fdownload"
+            "https://sourceforge.net"
 
-      - name: Create System Hard Disk
+      - name: Provision Storage Drive
         run: |
           qemu-img create -f qcow2 gtv14_disk.qcow2 12G
 
-      - name: Launch QEMU (Headless Mode)
+      - name: Launch GTV14 in QEMU (Headless VNC Server)
         run: |
-          echo "Launching accelerated virtual machine in headless mode..."
+          echo "Starting QEMU..."
           sudo qemu-system-x86_64 \
             -enable-kvm \
             -cpu host \
@@ -44,14 +44,37 @@ jobs:
             -monitor unix:qemu_control.sock,server,nowait \
             -daemonize
 
-      - name: Auto-Select GRUB Boot Option
+      - name: Skip GRUB Boot Menu Automatically
         run: |
-          echo "Waiting for GRUB boot menu initialization..."
-          sleep 7
-          echo "Sending Return keycode via root privilege socket connection..."
+          sleep 6
           echo "sendkey ret" | sudo nc -U qemu_control.sock
 
-      - name: Deploy Live Debugging Terminal Link
-        uses: mxschmitt/action-tmate@v3
-        with:
-          limit-access-to-actor: false
+      - name: Start Websockify (VNC to WebSockets)
+        run: |
+          echo "Translating raw VNC data to HTML5 WebSockets on port 6080..."
+          websockify --web /usr/share/novnc/ 6080 127.0.0.1:5900 &
+          sleep 2
+
+      - name: Generate Public Remote Link and Hold for 1 Hour
+        run: |
+          echo "================================================================"
+          echo "CREATING ZERO-CONFIG NO-REGISTRATION PUBLIC REMOTING LINK..."
+          echo "================================================================"
+          
+          # Spin up the public SSL tunnel pointing to the noVNC local network socket
+          ssh -o StrictHostKeyChecking=no -R 80:localhost:6080 a.pinggy.io &
+          
+          # Allow 5 seconds for the connection handshake to print out
+          sleep 5
+          
+          echo "================================================================"
+          echo "--> INSTRUCTIONS TO VIEW YOUR ANDROID TV <--"
+          echo "1. Look above in the log execution line for a URL ending in .pinggy.link"
+          echo "2. Open that URL in your browser."
+          echo "3. Click on the 'vnc.html' file on screen to see the Android TV screen live."
+          echo "4. Use your computer's ARROW KEYS to steer the TV up/down/left/right!"
+          echo "================================================================"
+          
+          # This forces the GitHub Action worker to sleep perfectly for exactly 60 minutes
+          echo "VM is now locked open for 1 hour. Enjoy!"
+          sleep 3600
