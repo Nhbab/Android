@@ -21,40 +21,34 @@ jobs:
           sudo usermod -aG kvm $USER
           sudo chown $USER /dev/kvm
 
-      - name: Download Android TV 9 ISO (Escape Brackets Bypass)
+      - name: Download Android TV 9 ISO (Exact Filename Match)
         run: |
-          echo "Pulling clean direct 1.2GB ISO payload from Internet Archive servers..."
+          echo "Downloading ISO using exact target filename wrapper..."
           curl -L -A "Mozilla/5.0" \
-            -o "AndroidTV9-x64.iso" \
-            "https://archive.org"
+            -o "AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-(07.02.23).iso" \
+            "https://archive.org/download/androidtv-x86/AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-%2807.02.23%29.iso"
 
-      - name: Create Custom Boot Config File
+      - name: Mount and Extract Kernel Components for Direct Injection
         run: |
-          echo "Building an automated boot configuration file to force true color and bypass the setup wizard loop..."
-          # This writes a custom configuration file that completely bypasses the interactive blue menu screens
-          cat << 'EOF' > custom_boot.cfg
-          default=0
-          timeout=0
+          echo "Extracting system kernel files using the exact matched filename paths..."
+          mkdir iso_mount
+          sudo mount -o loop "AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-(07.02.23).iso" iso_mount
+          cp iso_mount/kernel .
+          cp iso_mount/initrd.img .
+          sudo umount iso_mount
 
-          menuentry 'Android TV 9 (True Color + Setup Bypass)' --class android-x86 {
-              search --file --set=root /kernel
-              linux /kernel root=/dev/ram0 androidboot.selinux=permissive androidboot.hardware=android_x86 vga=788 SETUPWIZARD=0 EXTMOD=1 SRC=/ quiet
-              initrd /initrd.img
-          }
-          EOF
-
-      - name: Launch Android TV 9 in QEMU (Direct Config Injection Mode)
+      - name: Launch Android TV 9 in QEMU (Direct Boot Mode)
         run: |
-          echo "Starting accelerated QEMU container layout using custom boot parameters..."
-          # We attach our custom_boot.cfg file as a virtual floppy drive block (-fda)
-          # We tell QEMU to read the boot configuration settings from it natively
+          echo "Starting accelerated QEMU container layout using Direct Kernel Injection..."
           qemu-system-x86_64 \
             -enable-kvm \
             -cpu Westmere,+ssse3,+sse4.1,+sse4.2,+popcnt,aes=on \
             -m 6G \
             -smp 4,cores=4,threads=1 \
-            -drive file="AndroidTV9-x64.iso",media=cdrom,format=raw \
-            -boot order=d \
+            -kernel kernel \
+            -initrd initrd.img \
+            -append "root=/dev/ram0 androidboot.selinux=permissive androidboot.hardware=android_x86 vga=788 video=vesafb:ywrap,mtrr SETUPWIZARD=0 EXTMOD=1 SRC=/ quiet" \
+            -drive file="AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-(07.02.23).iso",media=cdrom,format=raw \
             -vga std \
             -device virtio-mouse-pci \
             -device virtio-keyboard-pci \
@@ -63,26 +57,12 @@ jobs:
             -vnc 127.0.0.1:0 \
             -net nic,model=virtio \
             -net user,hostfwd=tcp::5555-:5555 \
-            -monitor telnet:127.0.0.1:4444,server,nowait \
             -daemonize
 
-      - name: Fast Automated Config Overwrite Injection
+      - name: Apply Browser True-Color Patch into noVNC
         run: |
-          echo "Waiting 12 seconds for the storage layers to align..."
-          sleep 12
-          
-          echo "Injecting return key over clean network port using Python..."
-          python3 -c '
-          import socket, time
-          s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-          s.connect(("127.0.0.1", 4444))
-          time.sleep(0.5)
-          # Sends a single automated return key to execute the custom setup-bypass bootloader profile
-          s.sendall(b"\n\nsendkey ret\n")
-          time.sleep(0.5)
-          s.close()
-          '
-          echo "Boot command executed successfully. Android TV 9 GUI environment is generating..."
+          echo "Injecting canvas color correction filter into noVNC page to fix inverted graphics..."
+          sed -i '/<div id="noVNC_container">/i <style>#noVNC_canvas { filter: hue-rotate(180deg) !important; }</style>' /usr/share/novnc/vnc.html
 
       - name: Start Websockify (VNC to WebSockets)
         run: |
