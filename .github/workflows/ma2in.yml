@@ -46,17 +46,17 @@ jobs:
 
       - name: Launch Android SDK TV Emulator (Unfreezable Software Engine)
         run: |
-          echo "Starting official Android TV emulator with performance boots parameters..."
+          echo "Starting official Android TV emulator with performance parameters..."
           export ANDROID_AVD_HOME="$HOME/.android/avd"
           
-          # FIXED: Switched to -gpu guest and added low-overhead performance parameters to prevent headless freezing
+          # FIXED: Changed -purge-avd to the correct -wipe-data argument to bypass the compilation crash loop
           $ANDROID_HOME/emulator/emulator -avd "Android_TV_9" \
             -no-window \
             -no-audio \
             -no-boot-anim \
-            -gpu guest \
+            -gpu swiftshader_indirect \
             -no-snapshot-load \
-            -purge-avd \
+            -wipe-data \
             -memory 3072 \
             -cores 3 &
           sleep 5
@@ -67,7 +67,6 @@ jobs:
           sleep 45
           
           echo "Connecting via local debugging layer..."
-          # Start adb server explicitly beforehand to stabilize the bridge handshake
           adb start-server
           adb wait-for-device
           
