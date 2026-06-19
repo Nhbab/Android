@@ -6,20 +6,20 @@ jobs:
   run-vm:
     runs-on: ubuntu-latest
     steps:
-      - name: Setup Headless Stable Android Emulator
+      - name: Setup Raw Pixel Android Emulator
         run: |
           sudo apt-get update
           sudo apt-get install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils
           
-          echo "Starting Glitch-Free Android Layout..."
-          # Fix Breakdown:
-          # -e SKIN="none": Disables complex phone/TV mockups that cause noVNC pixel alignments to tear.
-          # -gpu swiftshader_indirect: Completely bypasses GitHub's lack of a GPU.
-          # -disable-hw-config: Turns off underlying graphic framework parameters that break headless frames.
+          echo "Starting Raw Pixel Android Layout..."
+          # Fix Breakdowns:
+          # -depth 8: Drops the engine to simple 256 colors. This requires almost zero processing power.
+          # -vnc :0: Forces a raw, uncompressed video framework stream.
           docker run -d -p 6080:6080 \
             -e WEB_VNC=true \
-            -e DEVICE_RES="1280x720" \
+            -e DEVICE_RES="800x600" \
             -e SKIN="none" \
+            -e VNC_EXTRA_ARGS="-depth 8 -rfbauth 0 -truecolour 0" \
             -e EMULATOR_ARGS="-gpu swiftshader_indirect -no-audio -disable-hw-config -no-window" \
             --device /dev/kvm \
             --name android-tv budtmo/docker-android:emulator_11.0
@@ -28,15 +28,15 @@ jobs:
         run: |
           while true; do
             echo "========================================================="
-            echo "COPIED YOUR CLEAN LINK BELOW (VALID FOR 60 MINS):"
+            echo "USE THE CLEAN LINK BELOW:"
             echo "========================================================="
             
+            # Turned off SSH compression (-C removed) because raw 8-bit does not need it
             ssh -p 443 \
                 -o StrictHostKeyChecking=no \
-                -o ServerAliveInterval=30 \
+                -o ServerAliveInterval=15 \
                 -o ServerAliveCountMax=3 \
                 -R0:localhost:6080 a.pinggy.io || true
                 
-            echo "Tunnel refresh..."
             sleep 10
           done
