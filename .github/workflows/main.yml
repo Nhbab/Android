@@ -22,20 +22,16 @@ jobs:
             -o "Android 11 x64 (User).iso" \
             "https://archive.org/download/androidx86-11-isos/Android%2011%20x64%20%28User%29.iso"
 
-      - name: Provision Storage Drive
+      - name: Launch Android 11 in QEMU (Live CD Mode)
         run: |
-          qemu-img create -f qcow2 android11_disk.qcow2 16G
-
-      - name: Launch Android 11 in QEMU (High-Performance Headless)
-        run: |
-          echo "Starting optimized QEMU container layout..."
-          sudo qemu-system-x86_64 \
+          echo "Starting optimized QEMU container layout in Live mode..."
+          # Running the ISO directly as a high-performance memory image loops around hard disk locks entirely
+          qemu-system-x86_64 \
             -enable-kvm \
             -cpu host \
             -m 6G \
             -smp 4,cores=4,threads=1 \
-            -drive file=android11_disk.qcow2,format=qcow2,index=0,media=disk,cache=none,aio=native \
-            -drive file="Android 11 x64 (User).iso",index=1,media=cdrom,format=raw \
+            -drive file="Android 11 x64 (User).iso",media=cdrom,format=raw \
             -boot order=d \
             -vga virtio \
             -display none \
@@ -46,33 +42,24 @@ jobs:
             -monitor telnet:127.0.0.1:4444,server,nowait \
             -daemonize
 
-      - name: Fast Automated Target Drive Installation
+      - name: Automated GRUB Boot Selection
         run: |
-          echo "Waiting 8 seconds for the GRUB boot choices menu to initialize..."
+          echo "Waiting 8 seconds for the GRUB boot menu to initialize..."
           sleep 8
           
-          echo "Injecting automated installation key macro sequence..."
+          echo "Injecting return key via Python socket interface to launch Live CD Mode..."
           python3 -c '
           import socket, time
           s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
           s.connect(("127.0.0.1", 4444))
           time.sleep(0.5)
           
-          # Move down twice to select "Auto-Installation"
-          s.sendall(b"sendkey down\n")
-          time.sleep(0.5)
-          s.sendall(b"sendkey down\n")
-          time.sleep(0.5)
-          
-          # Hit Enter to process the installation loader
+          # Hits Enter on the first menu item: "Live CD - Run Android-x86 without installation"
           s.sendall(b"sendkey ret\n")
-          time.sleep(1.0)
-          
-          # Confirm disk wipe formatting partition selection
-          s.sendall(b"sendkey ret\n")
+          time.sleep(0.5)
           s.close()
           '
-          echo "Macro sequence delivered. System file installation is executing..."
+          echo "Boot command executed successfully. Loading Android 11 runtime workspace..."
 
       - name: Start Websockify (VNC to WebSockets)
         run: |
