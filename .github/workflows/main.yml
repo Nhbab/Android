@@ -6,19 +6,21 @@ jobs:
   run-vm:
     runs-on: ubuntu-latest
     steps:
-      - name: Setup Optimized Android Emulator
+      - name: Setup Headless Stable Android Emulator
         run: |
           sudo apt-get update
           sudo apt-get install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils
           
-          echo "Starting Artifact-Free Android Emulator..."
-          # Added flags to fix graphics distortion:
-          # DEVICE_RES: Lowers resolution to 1280x720 (reduces data tearing)
-          # EMULATOR_ARGS: Disables hardware GL, forces stable software graphics rendering
+          echo "Starting Glitch-Free Android Layout..."
+          # Fix Breakdown:
+          # -e SKIN="none": Disables complex phone/TV mockups that cause noVNC pixel alignments to tear.
+          # -gpu swiftshader_indirect: Completely bypasses GitHub's lack of a GPU.
+          # -disable-hw-config: Turns off underlying graphic framework parameters that break headless frames.
           docker run -d -p 6080:6080 \
             -e WEB_VNC=true \
             -e DEVICE_RES="1280x720" \
-            -e EMULATOR_ARGS="-gpu swiftshader_indirect -no-audio" \
+            -e SKIN="none" \
+            -e EMULATOR_ARGS="-gpu swiftshader_indirect -no-audio -disable-hw-config -no-window" \
             --device /dev/kvm \
             --name android-tv budtmo/docker-android:emulator_11.0
 
@@ -35,6 +37,6 @@ jobs:
                 -o ServerAliveCountMax=3 \
                 -R0:localhost:6080 a.pinggy.io || true
                 
-            echo "Limit reached. Generating new link..."
+            echo "Tunnel refresh..."
             sleep 10
           done
