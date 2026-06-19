@@ -31,17 +31,18 @@ jobs:
             --device "tv_720p" \
             --force
 
-      - name: Install and Extract noVNC Repository and Websockify via Homebrew
+      - name: Install noVNC and Python Websockify (Bypass Homebrew)
         run: |
-          echo "Installing websockify package engine..."
-          brew install websockify
+          echo "Installing websockify via native Python pip pipeline..."
+          # Fixed: Installs websockify via pip3 to prevent Homebrew missing formula crashes completely
+          pip3 install websockify
           
-          echo "Cloning lightweight standalone noVNC web runtime wrapper package..."
+          echo "Downloading standalone noVNC web runtime package..."
           curl -L -o novnc.tar.gz https://github.com
           tar -xzf novnc.tar.gz
           mv noVNC-1.5.0 novnc_web_root
           
-          echo "Injecting secondary fallback connection components..."
+          echo "Injecting fallback index layout components..."
           cp novnc_web_root/vnc.html novnc_web_root/index.html
 
       - name: Launch Android TV SDK Emulator (Hardware Accelerated hvf)
@@ -61,8 +62,8 @@ jobs:
       - name: Start Websockify pointing to Local Web Root
         run: |
           echo "Translating display signal channels over to network port 6080..."
-          # Pointing directly inside our newly unpacked portable local directory path safely
-          websockify --web ./novnc_web_root/ --heartbeat 10 6080 127.0.0.1:5900 &
+          # Execute websockify using Python's native module execution flag (-m)
+          python3 -m websockify --web ./novnc_web_root/ --heartbeat 10 6080 127.0.0.1:5900 &
           sleep 2
 
       - name: Generate Public Remote Link and Hold for 1 Hour
