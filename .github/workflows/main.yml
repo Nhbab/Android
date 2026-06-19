@@ -15,9 +15,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y qemu-system-x86 qemu-utils wget adb novnc websockify
 
-      - name: Download GTV14 Android TV ISO
+      - name: Download GTV14 Android TV ISO (Tokenless Direct Link)
         run: |
-          echo "Downloading ISO using browser bypass..."
+          echo "Downloading ISO utilizing SourceForge direct resolution matrix..."
+          # By targeting /projects/.../files/.../download, curl will follow the dynamic mirrors natively
           curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
             -o gtv14_atv.iso \
             "https://sourceforge.net"
@@ -29,7 +30,6 @@ jobs:
       - name: Launch GTV14 in QEMU (USB Emulation Mode)
         run: |
           echo "Starting QEMU by emulating a bootable USB stick..."
-          # Replaced -cdrom with a simulated USB storage drive mapped directly to the ISO block
           sudo qemu-system-x86_64 \
             -enable-kvm \
             -cpu host \
@@ -50,8 +50,8 @@ jobs:
 
       - name: Clean GRUB Boot Selection
         run: |
-          echo "Waiting 12 seconds for the USB boot tables to load..."
-          sleep 12
+          echo "Waiting 15 seconds for the USB boot tables to process..."
+          sleep 15
           
           echo "Injecting return key via Python socket interface..."
           python3 -c '
@@ -76,6 +76,7 @@ jobs:
           echo "LAUNCHING AUTHENTICATED TUNNEL ENGINE OVER PORT 443..."
           echo "================================================================"
           
+          # Stable connection tunnel utilizing your dedicated profile token code parameter
           ssh -o StrictHostKeyChecking=no -p 443 -R 80:localhost:6080 RPLfy23ckPE+80@a.pinggy.io > pinggy.log 2>&1 &
           
           sleep 10
