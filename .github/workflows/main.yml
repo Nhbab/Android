@@ -69,20 +69,20 @@ jobs:
       - name: Generate Public Remote Link and Hold for 1 Hour
         run: |
           echo "================================================================"
-          echo "LAUNCHING TUNNEL ENGINE OVER PORT 443..."
+          echo "LAUNCHING AUTHENTICATED TUNNEL ENGINE OVER PORT 443..."
           echo "================================================================"
           
-          # Added '-p 443' to force the tunnel through the standard open web port 
-          ssh -o StrictHostKeyChecking=no -p 443 -R 80:localhost:6080 a.pinggy.io > pinggy.log 2>&1 &
+          # Appended your persistent Token formatting configuration directly to the SSH tunnel parameters
+          ssh -o StrictHostKeyChecking=no -p 443 -R 80:localhost:6080 RPLfy23ckPE+80@a.pinggy.io > pinggy.log 2>&1 &
           
-          # Wait 10 seconds for the SSL handshake to finish 
+          # Wait 10 seconds for the token handshake and initialization to register
           sleep 10
           
           echo "================================================================"
           echo "--> YOUR ONLINE VIRTUAL MACHINE REMOTE DETAILS <--"
           echo "================================================================"
           
-          # Print the URL link directly out of the log file
+          # Print out your official custom secure URL address link
           grep -o 'https://[^ ]*\(pinggy.link\|pinggy.io\)' pinggy.log || cat pinggy.log
           
           echo ""
