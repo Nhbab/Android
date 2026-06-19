@@ -1,10 +1,10 @@
-name: Android TV 9 Fast 1 Hour VM
+name: Nexus Player Android TV 9 (1 Hour VM)
 
 on:
   workflow_dispatch:
 
 jobs:
-  run-atv9-vm:
+  run-nexus-player:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -28,17 +28,29 @@ jobs:
             -o "AndroidTV9-x64.iso" \
             "https://archive.org/download/androidtv-x86/AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-%2807.02.23%29.iso"
 
-      - name: Launch Android TV 9 in QEMU (Native ISO Drive Mounting)
+      - name: Mount and Extract Kernel Components for Direct Injection
         run: |
-          echo "Starting accelerated QEMU container layout using native CD-ROM mounting..."
-          # Replaced direct kernel parsing with native CD-ROM drive mounting so ARM and GApps files load properly
+          echo "Extracting system kernel files to force clear boot properties..."
+          mkdir iso_mount
+          sudo mount -o loop AndroidTV9-x64.iso iso_mount
+          cp iso_mount/kernel .
+          cp iso_mount/initrd.img .
+          sudo umount iso_mount
+
+      - name: Launch Nexus Player Emulation (Fixed Color & Boot Screen Freeze)
+        run: |
+          echo "Starting QEMU container mimicking Nexus Player architecture properties..."
+          # Enforces an Intel Atom-compatible instruction set (-cpu Westmere) to bypass boot loops
+          # Injects 'vga=788' to lock the standard video frame buffer into a perfect 16-bit color map, clearing the color distortion
           qemu-system-x86_64 \
             -enable-kvm \
-            -cpu host \
+            -cpu Westmere,+ssse3,+sse4.1,+sse4.2,+popcnt,aes=on \
             -m 6G \
             -smp 4,cores=4,threads=1 \
+            -kernel kernel \
+            -initrd initrd.img \
+            -append "root=/dev/ram0 androidboot.selinux=permissive androidboot.hardware=android_x86 SRC=/ vga=788 UVESA_MODE=1280x720 video=1280x720" \
             -drive file="AndroidTV9-x64.iso",media=cdrom,format=raw \
-            -boot order=d \
             -vga std \
             -device virtio-mouse-pci \
             -device virtio-keyboard-pci \
@@ -47,36 +59,7 @@ jobs:
             -vnc 127.0.0.1:0 \
             -net nic,model=virtio \
             -net user,hostfwd=tcp::5555-:5555 \
-            -monitor telnet:127.0.0.1:4444,server,nowait \
             -daemonize
-
-      - name: Fast Automated Debug GUI Macro Boot Selection
-        run: |
-          echo "Waiting 12 seconds for the GRUB live boot options to process..."
-          sleep 12
-          
-          echo "Injecting clean arrow adjustments to select Debug GUI Fallback mode..."
-          python3 -c '
-          import socket, time
-          s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-          s.connect(("127.0.0.1", 4444))
-          time.sleep(0.5)
-          
-          # Move down twice to select the internal "Live CD - Debug Mode" profile entry
-          s.sendall(b"sendkey down\n")
-          time.sleep(0.5)
-          s.sendall(b"sendkey down\n")
-          time.sleep(0.5)
-          
-          # Press Enter to execute the target boot sequence
-          s.sendall(b"sendkey ret\n")
-          time.sleep(2.0)
-          
-          # When the initial text scrolling pauses, press Enter one more time to exit console mode and launch the GUI
-          s.sendall(b"sendkey ret\n")
-          s.close()
-          '
-          echo "Boot command executed successfully. Android TV 9 user interface is loading..."
 
       - name: Start Websockify (VNC to WebSockets)
         run: |
@@ -89,7 +72,6 @@ jobs:
           echo "LAUNCHING AUTHENTICATED TUNNEL ENGINE OVER PORT 443..."
           echo "================================================================"
           
-          # Stable connection tunnel using your premium token ID mapping config
           ssh -o StrictHostKeyChecking=no -p 443 -R 80:localhost:6080 RPLfy23ckPE+80@a.pinggy.io > pinggy.log 2>&1 &
           
           sleep 10
@@ -98,7 +80,6 @@ jobs:
           echo "--> YOUR ONLINE VIRTUAL MACHINE REMOTE DETAILS <--"
           echo "================================================================"
           
-          # Read the log file, find the generated web URL, and print it cleanly to the console
           grep -o 'https://[^ ]*\(pinggy.link\|pinggy.io\)' pinggy.log || cat pinggy.log
           
           echo ""
@@ -108,5 +89,4 @@ jobs:
           echo "3. Use your computer keyboard ARROW KEYS to steer Up/Down/Left/Right!"
           echo "================================================================"
           
-          # Keeps the workflow worker open for 60 full minutes
           sleep 3600
