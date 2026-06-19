@@ -1,30 +1,40 @@
 name: Permanent Android TV Server
 on:
-  workflow_dispatch: # Allows you to start it manually from your phone
+  workflow_dispatch:
 
 jobs:
   run-vm:
     runs-on: ubuntu-latest
     steps:
-      - name: Install and Run Android Emulator
+      - name: Setup Optimized Android Emulator
         run: |
-          # Enable hardware virtualization inside the GitHub VM
           sudo apt-get update
           sudo apt-get install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils
           
-          # Start the Android Emulator with noVNC enabled
-          docker run -d -p 6080:6080 -e WEB_VNC=true --device /dev/kvm --name android-tv budtmo/docker-android:emulator_11.0
+          echo "Starting Artifact-Free Android Emulator..."
+          # Added flags to fix graphics distortion:
+          # DEVICE_RES: Lowers resolution to 1280x720 (reduces data tearing)
+          # EMULATOR_ARGS: Disables hardware GL, forces stable software graphics rendering
+          docker run -d -p 6080:6080 \
+            -e WEB_VNC=true \
+            -e DEVICE_RES="1280x720" \
+            -e EMULATOR_ARGS="-gpu swiftshader_indirect -no-audio" \
+            --device /dev/kvm \
+            --name android-tv budtmo/docker-android:emulator_11.0
 
-      - name: Start Permanent Pinggy Tunnel
+      - name: Start Free Pinggy Loop
         run: |
-          # Loop keeps the VM alive and reconnects Pinggy if it drops
           while true; do
-            echo "Starting permanent connection..."
+            echo "========================================================="
+            echo "COPIED YOUR CLEAN LINK BELOW (VALID FOR 60 MINS):"
+            echo "========================================================="
+            
             ssh -p 443 \
                 -o StrictHostKeyChecking=no \
                 -o ServerAliveInterval=30 \
                 -o ServerAliveCountMax=3 \
-                -R0:localhost:6080 RPLfy23ckPE@pro.pinggy.io
-            echo "Tunnel disconnected. Reconnecting..."
-            sleep 5
+                -R0:localhost:6080 a.pinggy.io || true
+                
+            echo "Limit reached. Generating new link..."
+            sleep 10
           done
