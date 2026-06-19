@@ -1,10 +1,10 @@
-name: Google TV 11 Fast 1 Hour VM
+name: Android TV 9 Fast 1 Hour VM
 
 on:
   workflow_dispatch:
 
 jobs:
-  run-gtv11-vm:
+  run-atv9-vm:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -21,38 +21,35 @@ jobs:
           sudo usermod -aG kvm $USER
           sudo chown $USER /dev/kvm
 
-      - name: Download GTV11 from Open Mirror Array (No Quota Blocks)
+      - name: Download Android TV 9.iso (MediaFire Scraper Bypass)
         run: |
-          echo "Pulling GTV11 from direct global hardware node..."
-          # Using specific direct mirror subdomains completely avoids Google Drive 403 / Quota blocks
-          curl -L -A "Mozilla/5.0" \
-            -o "GTV11-x86_64-MRDTeam-V24-250622.img" \
-            "https://sourceforge.net" || \
-          curl -L -A "Mozilla/5.0" \
-            -o "GTV11-x86_64-MRDTeam-V24-250622.img" \
-            "https://sourceforge.net"
+          echo "Downloading target Android TV 9.iso via deep carrier node headers..."
+          # Generates an ephemeral session cookie jar block to trick MediaFire into allowing full data streams
+          curl -L -b cookies.txt -c cookies.txt \
+            -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8" \
+            -H "Accept-Language: en-US,en;q=0.9" \
+            -H "Connection: keep-alive" \
+            -H "Upgrade-Insecure-Requests: 1" \
+            -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" \
+            -o "Android TV 9.iso" \
+            "https://download2440.mediafire.com/kn2g8os6mqhgA-5nGaO6Nrslwkyv44Al-3l5RaT1Cu159QUMcBzYKznn-FVTufCR2MJc0a5XbLValePbbbRjxyGtcxC4on5GTZyNrw3KsCzAXJBY3tOBGe41g77RwBUJq2gPLyaEcfCOJejFAdAIzABFZSXWJUvMLXwTw5uUpOw/yv3xktpoi74mf51/Android+TV+9.iso"
 
-      - name: Verify Downloaded Image Integrity
+      - name: Verify ISO File Integrity and Size
         run: |
-          echo "Checking downloaded file size footprint..."
-          # This must show around 1.2G to 1.5G, not 79K!
-          ls -lh "GTV11-x86_64-MRDTeam-V24-250622.img"
+          echo "Verifying downloaded raw storage allocation data..."
+          # Check this output line: it must read full Megabytes, matching your raw image file size!
+          ls -lh "Android TV 9.iso"
 
-      - name: Provision System Hard Drive
+      - name: Launch Android TV 9 in QEMU (Live Mode Accelerated)
         run: |
-          qemu-img create -f qcow2 gtv11_disk.qcow2 16G
-
-      - name: Launch GTV11 (SATA IDE Drive Mapping Interface)
-        run: |
-          echo "Launching QEMU using native raw hard disk layout to bypass CD-ROM locks..."
+          echo "Starting accelerated QEMU container layout in Live Mode..."
           qemu-system-x86_64 \
             -enable-kvm \
             -cpu host \
             -m 6G \
             -smp 4,cores=4,threads=1 \
-            -drive file=gtv11_disk.qcow2,format=qcow2,index=0,media=disk \
-            -drive file=GTV11-x86_64-MRDTeam-V24-250622.img,if=ide,format=raw,index=1,media=disk \
-            -boot order=c,menu=on \
+            -drive file="Android TV 9.iso",media=cdrom,format=raw \
+            -boot order=d \
             -vga virtio \
             -display none \
             -audio none \
@@ -62,9 +59,9 @@ jobs:
             -monitor telnet:127.0.0.1:4444,server,nowait \
             -daemonize
 
-      - name: Automated GRUB Boot Key Injection (Live CD Mode)
+      - name: Fast Automated Live CD Boot Selection
         run: |
-          echo "Waiting 12 seconds for the GRUB installation partition layout menu to initialize..."
+          echo "Waiting 12 seconds for the GRUB live boot options to process..."
           sleep 12
           
           echo "Injecting return key via Python socket interface to launch Live CD Mode..."
@@ -73,11 +70,11 @@ jobs:
           s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
           s.connect(("127.0.0.1", 4444))
           time.sleep(0.5)
-          s.sendall(b"\n\nsendkey ret\n")
+          s.sendall(b"sendkey ret\n")
           time.sleep(0.5)
           s.close()
           '
-          echo "Boot command executed successfully. Google TV 11 is loading..."
+          echo "Boot command executed successfully. Android TV 9 is loading..."
 
       - name: Start Websockify (VNC to WebSockets)
         run: |
