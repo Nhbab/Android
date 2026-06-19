@@ -5,7 +5,6 @@ on:
 
 jobs:
   run-sdk-tv-ubuntu:
-    # Runs entirely on GitHub's hosted Ubuntu infrastructure (Not Self-Hosted)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -17,13 +16,16 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Install Android SDK Components and System Image
+      - name: Install Android SDK Components, Emulator Core, and System Image
         run: |
-          echo "Installing SDK Command Line Tools and native Android TV image..."
+          echo "Installing SDK platform prerequisites..."
           # Accept all Google Android SDK licenses automatically
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
           
-          # Download Android TV 9 (API 28) x86 system image package
+          # FIXED: Explicitly installing the core "emulator" execution engine package binaries
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "emulator" "platform-tools" "platforms;android-28"
+          
+          # Download official Android TV 9 (API 28) x86 system image package
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "system-images;android-28;android-tv;x86"
           
           # Create the Android Virtual Device (AVD) profiled as a widescreen 720p TV layout
@@ -35,15 +37,13 @@ jobs:
 
       - name: Install noVNC and Websockify on Ubuntu
         run: |
-          echo "Installing browser remote streaming tools..."
           sudo apt-get update
           sudo apt-get install -y novnc websockify
 
       - name: Launch Android SDK TV Emulator (Software Accelerated Headless)
         run: |
           echo "Starting official Android TV emulator in software execution mode..."
-          # -gpu swiftshader_indirect: Forces stable CPU rendering, bypassing the lack of KVM hardware extensions on Linux runners
-          # -vnc :0: Initializes the native VNC display server directly on port 5900
+          # Added the emulator path directly into the execution caller layout block
           $ANDROID_HOME/emulator/emulator -avd "Android_TV_9" \
             -no-window \
             -no-audio \
@@ -56,8 +56,6 @@ jobs:
 
       - name: Start Websockify (VNC to WebSockets)
         run: |
-          echo "Translating frame buffer display signals to browser port 6080..."
-          # Maps VNC port 5900 onto WebSocket port 6080 for noVNC compliance
           websockify --web /usr/share/novnc/ --heartbeat 10 6080 127.0.0.1:5900 &
           sleep 2
 
@@ -67,7 +65,6 @@ jobs:
           echo "LAUNCHING AUTHENTICATED TUNNEL ENGINE OVER PORT 443..."
           echo "================================================================"
           
-          # Secure WebSocket mapping using your verified account token code profile over open HTTPS port 443
           ssh -o StrictHostKeyChecking=no -p 443 -R 80:localhost:6080 RPLfy23ckPE+80@a.pinggy.io > pinggy.log 2>&1 &
           
           sleep 12
@@ -76,7 +73,6 @@ jobs:
           echo "--> YOUR GITHUB-HOSTED VIRTUAL MACHINE REMOTE DETAILS <--"
           echo "================================================================"
           
-          # Extract and print out your clickable secure web access url link
           grep -o 'https://[^ ]*\(pinggy.link\|pinggy.io\)' pinggy.log || cat pinggy.log
           
           echo ""
@@ -86,5 +82,4 @@ jobs:
           echo "3. Use your computer keyboard ARROW KEYS to steer Up/Down/Left/Right!"
           echo "================================================================"
           
-          # Keeps the workflow worker open for 60 full minutes
           sleep 3600
