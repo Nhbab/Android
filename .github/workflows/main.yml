@@ -6,21 +6,22 @@ jobs:
   run-vm:
     runs-on: ubuntu-latest
     steps:
-      - name: Setup Raw Pixel Android Emulator
+      - name: Setup Layout-Aligned Android Emulator
         run: |
           sudo apt-get update
           sudo apt-get install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils
           
-          echo "Starting Raw Pixel Android Layout..."
+          echo "Starting Aligned Screen Layout..."
           # Fix Breakdowns:
-          # -depth 8: Drops the engine to simple 256 colors. This requires almost zero processing power.
-          # -vnc :0: Forces a raw, uncompressed video framework stream.
+          # -e DEVICE_RES="1280x800": Standardizes the desktop width canvas.
+          # -screen 0 1280x800x24: Explicitly forces the underlying Linux display server to lock resolution.
+          # -e SKIN="none": Prevents phone borders from stretching or breaking the screen pixels.
           docker run -d -p 6080:6080 \
             -e WEB_VNC=true \
-            -e DEVICE_RES="800x600" \
+            -e DEVICE_RES="1280x800" \
             -e SKIN="none" \
-            -e VNC_EXTRA_ARGS="-depth 8 -rfbauth 0 -truecolour 0" \
-            -e EMULATOR_ARGS="-gpu swiftshader_indirect -no-audio -disable-hw-config -no-window" \
+            -e VNC_EXTRA_ARGS="-screen 0 1280x800x24" \
+            -e EMULATOR_ARGS="-gpu swiftshader_indirect -no-audio -no-window -尊-hw-config" \
             --device /dev/kvm \
             --name android-tv budtmo/docker-android:emulator_11.0
 
@@ -28,10 +29,9 @@ jobs:
         run: |
           while true; do
             echo "========================================================="
-            echo "USE THE CLEAN LINK BELOW:"
+            echo "USE YOUR COMPLETED FIXED LINK BELOW:"
             echo "========================================================="
             
-            # Turned off SSH compression (-C removed) because raw 8-bit does not need it
             ssh -p 443 \
                 -o StrictHostKeyChecking=no \
                 -o ServerAliveInterval=15 \
