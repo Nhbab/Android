@@ -69,20 +69,20 @@ jobs:
       - name: Generate Public Remote Link and Hold for 1 Hour
         run: |
           echo "================================================================"
-          echo "LAUNCHING TUNNEL ENGINE..."
+          echo "LAUNCHING TUNNEL ENGINE OVER PORT 443..."
           echo "================================================================"
           
-          # Force Pinggy to save all its log output into an internal text file (pinggy.log)
-          ssh -o StrictHostKeyChecking=no -R 80:localhost:6080 a.pinggy.io > pinggy.log 2>&1 &
+          # Added '-p 443' to force the tunnel through the standard open web port 
+          ssh -o StrictHostKeyChecking=no -p 443 -R 80:localhost:6080 a.pinggy.io > pinggy.log 2>&1 &
           
-          # Wait 8 seconds for the network link to establish completely
-          sleep 8
+          # Wait 10 seconds for the SSL handshake to finish 
+          sleep 10
           
           echo "================================================================"
           echo "--> YOUR ONLINE VIRTUAL MACHINE REMOTE DETAILS <--"
           echo "================================================================"
           
-          # Read the log file, find the generated web URL, and print it cleanly to the console
+          # Print the URL link directly out of the log file
           grep -o 'https://[^ ]*\(pinggy.link\|pinggy.io\)' pinggy.log || cat pinggy.log
           
           echo ""
