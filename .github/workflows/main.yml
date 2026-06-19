@@ -1,4 +1,4 @@
-name: Permanent Android TV Server
+name: Cloud Phone Android TV
 on:
   workflow_dispatch:
 
@@ -6,37 +6,47 @@ jobs:
   run-vm:
     runs-on: ubuntu-latest
     steps:
-      - name: Setup Layout-Aligned Android Emulator
+      - name: Setup Virtualization and Docker
         run: |
           sudo apt-get update
           sudo apt-get install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils
-          
-          echo "Starting Aligned Screen Layout..."
-          # Fix Breakdowns:
-          # -e DEVICE_RES="1280x800": Standardizes the desktop width canvas.
-          # -screen 0 1280x800x24: Explicitly forces the underlying Linux display server to lock resolution.
-          # -e SKIN="none": Prevents phone borders from stretching or breaking the screen pixels.
-          docker run -d -p 6080:6080 \
-            -e WEB_VNC=true \
-            -e DEVICE_RES="1280x800" \
-            -e SKIN="none" \
-            -e VNC_EXTRA_ARGS="-screen 0 1280x800x24" \
-            -e EMULATOR_ARGS="-gpu swiftshader_indirect -no-audio -no-window -尊-hw-config" \
-            --device /dev/kvm \
-            --name android-tv budtmo/docker-android:emulator_11.0
 
-      - name: Start Free Pinggy Loop
+      - name: Launch Emulator Container
+        run: |
+          echo "Starting Core Android Emulator..."
+          # Running the emulator internally without VNC to save resources
+          docker run -d --name android-emulator \
+            --device /dev/kvm \
+            -e DEVICE_RES="1280x720" \
+            -e SKIN="none" \
+            -e EMULATOR_ARGS="-gpu swiftshader_indirect -no-audio -no-window" \
+            budtmo/docker-android:emulator_11.0
+
+      - name: Launch Web-Scrcpy Web Streamer
+        run: |
+          echo "Waiting 15 seconds for emulator core to initialize..."
+          sleep 15
+          
+          echo "Starting Cloud Phone Video Streamer Engine..."
+          # This container attaches to the emulator and converts the screen into a lightweight WebRTC/H264 video feed
+          docker run -d -p 8000:8000 --name web-scrcpy \
+            --link android-emulator:android-emulator \
+            -e ADB_SERVER_SOCKET=tcp:android-emulator:5555 \
+            genymobile/scrcpy-web:latest || true
+
+      - name: Start Free Pinggy Video Loop
         run: |
           while true; do
             echo "========================================================="
-            echo "USE YOUR COMPLETED FIXED LINK BELOW:"
+            echo "OPEN THE VIDEO STREAM LINK BELOW (VALID FOR 60 MINS):"
             echo "========================================================="
             
+            # Forwarding Port 8000 (The Web-Scrcpy Video Feed) instead of VNC
             ssh -p 443 \
                 -o StrictHostKeyChecking=no \
                 -o ServerAliveInterval=15 \
                 -o ServerAliveCountMax=3 \
-                -R0:localhost:6080 a.pinggy.io || true
+                -R0:localhost:8000 a.pinggy.io || true
                 
             sleep 10
           done
