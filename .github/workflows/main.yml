@@ -13,7 +13,7 @@ jobs:
       - name: Install QEMU, noVNC, and Utilities
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 qemu-utils wget adb novnc websockify netcat-openbsd
+          sudo apt-get install -y qemu-system-x86 qemu-utils wget adb novnc websockify netcat-traditional
 
       - name: Download GTV14 Android TV ISO
         run: |
@@ -29,7 +29,6 @@ jobs:
       - name: Launch GTV14 in QEMU (Isolated Monitor Port)
         run: |
           echo "Starting QEMU with a dedicated local network port for clean controls..."
-          # Changed -monitor from unix socket to a network telnet socket to prevent text overlap
           sudo qemu-system-x86_64 \
             -enable-kvm \
             -cpu host \
@@ -47,12 +46,12 @@ jobs:
 
       - name: Clean GRUB Boot Selection
         run: |
-          echo "Waiting 8 seconds for the boot screen to completely settle..."
-          sleep 8
+          echo "Waiting 10 seconds for the boot screen to completely settle..."
+          sleep 10
           
           echo "Injecting return key over clean network port..."
-          # This connects via local telnet and sends a pure, uninterrupted Enter signal
-          printf "\n\nsendkey ret\n" | nc 127.0.0.1:4444
+          # Fixed syntax: added the -p flag to explicitly define the port for netcat
+          printf "\n\nsendkey ret\n" | nc 127.0.0.1 -p 4444
           echo "Boot selection delivered cleanly."
 
       - name: Start Websockify (VNC to WebSockets)
