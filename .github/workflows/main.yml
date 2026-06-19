@@ -17,7 +17,11 @@ jobs:
 
       - name: Download GTV14 Android TV ISO
         run: |
-          wget -O gtv14_atv.iso "https://sourceforge.net"
+          echo "Downloading GTV14 x86_64 ISO using browser emulation..."
+          # Using curl with a Chrome browser user-agent bypasses the SourceForge 403 firewall
+          curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+            -o gtv14_atv.iso \
+            "https://downloads.sourceforge.net/project/androidtv-x86-64/GTV14/GTV14-x86_64-MRDTeam-V26T-260520.iso?ts=gAAAAABqNKI3177yBBdHqQsWOt747oDBhsLD_8oi50um_BIYhlvpXY_blf_fEW9bXND-RcAPRNp12tirUOZpsOrlnN_j_8GhKw%3D%3D&r=https%3A%2F%2Fsourceforge.net%2Fprojects%2Fandroidtv-x86-64%2Ffiles%2FGTV14%2FGTV14-x86_64-MRDTeam-V26T-260520.iso%2Fdownload"
 
       - name: Provision Storage Drive
         run: |
