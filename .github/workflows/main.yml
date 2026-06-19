@@ -6,39 +6,26 @@ jobs:
   run-vm:
     runs-on: ubuntu-latest
     steps:
-      - name: Setup Virtualization and Docker
+      - name: Setup Virtualization
         run: |
           sudo apt-get update
           sudo apt-get install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils
 
-      - name: Launch Emulator Container
+      - name: Launch Dockerify Cloud Phone
         run: |
-          echo "Starting Core Android Emulator..."
-          docker run -d --name android-emulator \
+          echo "Starting Unified Android Video Streaming Environment..."
+          # This image runs the emulator and native streaming pipeline on port 8000 simultaneously
+          docker run -d -p 8000:8000 \
+            --privileged \
             --device /dev/kvm \
             -e DEVICE_RES="1280x720" \
-            -e SKIN="none" \
-            -e EMULATOR_ARGS="-gpu swiftshader_indirect -no-audio -no-window" \
-            budtmo/docker-android:emulator_11.0
-
-      - name: Launch Web-Scrcpy Web Streamer
-        run: |
-          echo "Waiting 20 seconds for emulator core to initialize..."
-          sleep 20
-          
-          echo "Starting Cloud Phone Video Streamer Engine..."
-          # CHANGED IMAGE TO A VALID REPOSITORY: shmayro/scrcpy-web
-          docker run -d -p 8000:8000 --name web-scrcpy \
-            --privileged \
-            --link android-emulator:android-emulator \
-            -e ADB_SERVER_SOCKET=tcp:android-emulator:5555 \
-            shmayro/scrcpy-web:latest || true
+            --name cloud-phone shmayro/dockerify-android:latest
 
       - name: Start Free Pinggy Video Loop
         run: |
           while true; do
             echo "========================================================="
-            echo "OPEN THE VIDEO STREAM LINK BELOW (VALID FOR 60 MINS):"
+            echo "OPEN THIS LINK TO SEE YOUR SMARTPHONE VIDEO ENGINES:"
             echo "========================================================="
             
             ssh -p 443 \
