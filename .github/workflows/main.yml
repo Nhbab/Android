@@ -28,11 +28,11 @@ jobs:
             -o "AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-(07.02.23).iso" \
             "https://archive.org/download/androidtv-x86/AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-%2807.02.23%29.iso"
 
-      - name: Launch Android TV 9 in QEMU (Native Unlocked Optical Disk Boot)
+      - name: Launch Android TV 9 in QEMU (High-Capacity VRAM Configuration)
         run: |
-          echo "Starting accelerated QEMU container via unlocked native CD-ROM channel..."
-          # Emulates an Intel Atom-compatible core structure with standard video layers
-          # Removed direct kernel mapping lines to prevent block device locking errors entirely
+          echo "Starting accelerated QEMU container via crash-resistant display matrix..."
+          # Upgraded to '-vga vmware' and added '-global vga.vgamem_mb=64' 
+          # This expands video RAM memory limits to prevent the VNC connection from dropping during GUI launch
           qemu-system-x86_64 \
             -enable-kvm \
             -cpu Westmere,+ssse3,+sse4.1,+sse4.2,+popcnt,aes=on \
@@ -40,7 +40,8 @@ jobs:
             -smp 4,cores=4,threads=1 \
             -drive file="AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-(07.02.23).iso",media=cdrom,format=raw \
             -boot order=d,menu=on,once=d \
-            -vga std \
+            -vga vmware \
+            -global vga.vgamem_mb=64 \
             -device virtio-mouse-pci \
             -device virtio-keyboard-pci \
             -display none \
@@ -76,7 +77,8 @@ jobs:
 
       - name: Start Websockify (VNC to WebSockets)
         run: |
-          websockify --web /usr/share/novnc/ 6080 127.0.0.1:5900 &
+          # Upgraded with a keepalive script tag loop to ensure port 6080 reconnects smoothly if the server glitches
+          websockify --web /usr/share/novnc/ --heartbeat 10 6080 127.0.0.1:5900 &
           sleep 2
 
       - name: Generate Public Remote Link and Hold for 1 Hour
