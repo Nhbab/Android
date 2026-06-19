@@ -1,12 +1,12 @@
-name: Android SDK TV 9 Cloud 1 Hour VM
+name: Android SDK TV 9 Ubuntu 1 Hour VM
 
 on:
   workflow_dispatch:
 
 jobs:
-  run-sdk-tv:
-    # Forces the job to run on GitHub's hosted macOS environment for free native hardware acceleration
-    runs-on: macos-13
+  run-sdk-tv-ubuntu:
+    # Runs entirely on GitHub's hosted Ubuntu infrastructure (Not Self-Hosted)
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -19,44 +19,46 @@ jobs:
 
       - name: Install Android SDK Components and System Image
         run: |
-          echo "Installing SDK Tools and official Android TV image onto GitHub runner..."
-          # Accept all licenses automatically
+          echo "Installing SDK Command Line Tools and native Android TV image..."
+          # Accept all Google Android SDK licenses automatically
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
           
-          # Download official Android TV 9 (API 28) x86 system image
+          # Download Android TV 9 (API 28) x86 system image package
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "system-images;android-28;android-tv;x86"
           
-          # Build the virtual device configured as a large widescreen 720p TV
+          # Create the Android Virtual Device (AVD) profiled as a widescreen 720p TV layout
           echo "no" | $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager create avd \
             --name "Android_TV_9" \
             --package "system-images;android-28;android-tv;x86" \
             --device "tv_720p" \
             --force
 
-      - name: Install noVNC and Websockify on macOS
+      - name: Install noVNC and Websockify on Ubuntu
         run: |
-          echo "Installing browser remote streaming tools via Homebrew..."
-          brew install novnc websockify
+          echo "Installing browser remote streaming tools..."
+          sudo apt-get update
+          sudo apt-get install -y novnc websockify
 
-      - name: Launch Android SDK TV Emulator (Headless Acceleration Mode)
+      - name: Launch Android SDK TV Emulator (Software Accelerated Headless)
         run: |
-          echo "Starting native Android emulator at high performance cloud speeds..."
-          # Launches the emulator headlessly with native VNC display mapping using macOS hardware acceleration (-accel on)
+          echo "Starting official Android TV emulator in software execution mode..."
+          # -gpu swiftshader_indirect: Forces stable CPU rendering, bypassing the lack of KVM hardware extensions on Linux runners
+          # -vnc :0: Initializes the native VNC display server directly on port 5900
           $ANDROID_HOME/emulator/emulator -avd "Android_TV_9" \
+            -no-window \
             -no-audio \
             -no-boot-anim \
             -gpu swiftshader_indirect \
             -vnc :0 \
-            -accel on \
             -memory 3072 \
             -cores 3 \
             -daemonize
 
       - name: Start Websockify (VNC to WebSockets)
         run: |
-          echo "Translating display signals to port 6080..."
-          # Maps VNC framework port 5900 onto browser network port 6080
-          /opt/homebrew/bin/websockify --web /opt/homebrew/share/novnc/ --heartbeat 10 6080 127.0.0.1:5900 &
+          echo "Translating frame buffer display signals to browser port 6080..."
+          # Maps VNC port 5900 onto WebSocket port 6080 for noVNC compliance
+          websockify --web /usr/share/novnc/ --heartbeat 10 6080 127.0.0.1:5900 &
           sleep 2
 
       - name: Generate Public Remote Link and Hold for 1 Hour
@@ -65,7 +67,7 @@ jobs:
           echo "LAUNCHING AUTHENTICATED TUNNEL ENGINE OVER PORT 443..."
           echo "================================================================"
           
-          # Secure WebSocket mapping using your verified account token code profile
+          # Secure WebSocket mapping using your verified account token code profile over open HTTPS port 443
           ssh -o StrictHostKeyChecking=no -p 443 -R 80:localhost:6080 RPLfy23ckPE+80@a.pinggy.io > pinggy.log 2>&1 &
           
           sleep 12
