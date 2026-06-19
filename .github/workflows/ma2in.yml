@@ -28,20 +28,31 @@ jobs:
             -o "AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-(07.02.23).iso" \
             "https://archive.org/download/androidtv-x86/AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-%2807.02.23%29.iso"
 
-      - name: Launch Android TV 9 in QEMU (High-Capacity VRAM Configuration)
+      - name: Mount and Extract Kernel Components for Direct Injection
         run: |
-          echo "Starting accelerated QEMU container via crash-resistant display matrix..."
-          # Upgraded to '-vga vmware' and added '-global vga.vgamem_mb=64' 
-          # This expands video RAM memory limits to prevent the VNC connection from dropping during GUI launch
+          echo "Extracting system kernel files to execute direct parameter injection..."
+          mkdir iso_mount
+          sudo mount -o loop "AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-(07.02.23).iso" iso_mount
+          cp iso_mount/kernel .
+          cp iso_mount/initrd.img .
+          sudo umount iso_mount
+
+      - name: Launch Android TV 9 (Max Speed + High-Definition Resolution)
+        run: |
+          echo "Starting high-performance QEMU container layout..."
+          # Upgraded to -vga virtio with 128MB VRAM for fluid, lightning-fast rendering speed
+          # Injected 'video=1280x720 DPI=160' into the boot parameters to enlarge the viewport and fix the tiny interface layout
           qemu-system-x86_64 \
             -enable-kvm \
             -cpu Westmere,+ssse3,+sse4.1,+sse4.2,+popcnt,aes=on \
             -m 6G \
             -smp 4,cores=4,threads=1 \
+            -kernel kernel \
+            -initrd initrd.img \
+            -append "root=/dev/ram0 androidboot.selinux=permissive androidboot.hardware=android_x86 SRC=/ vga=788 video=1280x720 DPI=160 SETUPWIZARD=0 EXTMOD=1 quiet" \
             -drive file="AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-(07.02.23).iso",media=cdrom,format=raw \
-            -boot order=d,menu=on,once=d \
-            -vga vmware \
-            -global vga.vgamem_mb=64 \
+            -vga virtio \
+            -global virtio-vga.vgamem_mb=128 \
             -device virtio-mouse-pci \
             -device virtio-keyboard-pci \
             -display none \
@@ -49,35 +60,15 @@ jobs:
             -vnc 127.0.0.1:0 \
             -net nic,model=virtio \
             -net user,hostfwd=tcp::5555-:5555 \
-            -monitor telnet:127.0.0.1:4444,server,nowait \
             -daemonize
-
-      - name: Clean Automated GRUB Selection
-        run: |
-          echo "Waiting 12 seconds for the GRUB installation partition layout menu to initialize..."
-          sleep 12
-          
-          echo "Injecting pure return key via clean network port using Python..."
-          python3 -c '
-          import socket, time
-          s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-          s.connect(("127.0.0.1", 4444))
-          time.sleep(0.5)
-          # Fires a single un-garbled Return key to cleanly choose Option 1 ("Run without installation")
-          s.sendall(b"sendkey ret\n")
-          time.sleep(0.5)
-          s.close()
-          '
-          echo "Boot command executed successfully. Android TV 9 is loading..."
 
       - name: Apply Browser True-Color Patch into noVNC
         run: |
-          echo "Injecting canvas color correction filter into noVNC page to fix inverted graphics..."
+          echo "Injecting canvas color correction filter into noVNC page..."
           sudo sed -i '/<div id="noVNC_container">/i <style>#noVNC_canvas { filter: hue-rotate(180deg) !important; }</style>' /usr/share/novnc/vnc.html
 
       - name: Start Websockify (VNC to WebSockets)
         run: |
-          # Upgraded with a keepalive script tag loop to ensure port 6080 reconnects smoothly if the server glitches
           websockify --web /usr/share/novnc/ --heartbeat 10 6080 127.0.0.1:5900 &
           sleep 2
 
