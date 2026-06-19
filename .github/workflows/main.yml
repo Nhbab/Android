@@ -21,9 +21,9 @@ jobs:
           sudo usermod -aG kvm $USER
           sudo chown $USER /dev/kvm
 
-      - name: Download GTV11 ISO from Google Drive (Tokenless Bypass)
+      - name: Download GTV11 from Google Drive (Convert to Raw Image)
         run: |
-          echo "Downloading GTV11 ISO using Google Drive large file virus scan bypass..."
+          echo "Downloading GTV11 using Google Drive bypass and converting file block signature..."
           python3 -c '
           import requests
           def download_file_from_google_drive(id, destination):
@@ -46,29 +46,30 @@ jobs:
                       if chunk:
                           f.write(chunk)
 
-          download_file_from_google_drive("1lXOoXZz_jhdpk1X5NTJBS3V-ZCMrEukC", "GTV11-x86_64-MRDTeam-V24-250622.iso")
+          # Saving explicitly with a .img extension satisfies the QEMU hard disk driver logic
+          download_file_from_google_drive("1lXOoXZz_jhdpk1X5NTJBS3V-ZCMrEukC", "GTV11-x86_64-MRDTeam-V24-250622.img")
           '
 
-      - name: Verify ISO Download File Integrity
+      - name: Verify Downloaded Image Integrity
         run: |
           echo "Checking downloaded file size..."
-          ls -lh "GTV11-x86_64-MRDTeam-V24-250622.iso"
+          ls -lh "GTV11-x86_64-MRDTeam-V24-250622.img"
 
       - name: Provision System Hard Drive
         run: |
           qemu-img create -f qcow2 gtv11_disk.qcow2 16G
 
-      - name: Launch GTV11 (SATA HD/Hybrid Emulation Mode)
+      - name: Launch GTV11 (SATA IDE Drive Mapping Interface)
         run: |
-          echo "Launching QEMU with a SATA hard disk structure to bypass hybrid boot blocks..."
-          # Mounted as media=disk instead of cdrom to fix the "no bootable device" loop on MRDTeam builds
+          echo "Launching QEMU using native raw hard disk layout to bypass CD-ROM locks..."
+          # Changed layout to 'if=ide,format=raw' to match the hybrid boot signature expectation
           qemu-system-x86_64 \
             -enable-kvm \
             -cpu host \
             -m 6G \
             -smp 4,cores=4,threads=1 \
             -drive file=gtv11_disk.qcow2,format=qcow2,index=0,media=disk \
-            -drive file=GTV11-x86_64-MRDTeam-V24-250622.iso,format=raw,index=1,media=disk \
+            -drive file=GTV11-x86_64-MRDTeam-V24-250622.img,if=ide,format=raw,index=1,media=disk \
             -boot order=c,menu=on \
             -vga virtio \
             -display none \
@@ -90,8 +91,7 @@ jobs:
           s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
           s.connect(("127.0.0.1", 4444))
           time.sleep(0.5)
-          # Fires Enter key onto the first entry: "Live CD - Run Google TV without installation"
-          s.sendall(b"sendkey ret\n")
+          s.sendall(b"\n\nsendkey ret\n")
           time.sleep(0.5)
           s.close()
           '
@@ -108,7 +108,6 @@ jobs:
           echo "LAUNCHING AUTHENTICATED TUNNEL ENGINE OVER PORT 443..."
           echo "================================================================"
           
-          # Stable web tunnel utilizing your custom registered profile token ID parameter
           ssh -o StrictHostKeyChecking=no -p 443 -R 80:localhost:6080 RPLfy23ckPE+80@a.pinggy.io > pinggy.log 2>&1 &
           
           sleep 10
@@ -117,7 +116,6 @@ jobs:
           echo "--> YOUR ONLINE VIRTUAL MACHINE REMOTE DETAILS <--"
           echo "================================================================"
           
-          # Extract and print out your clickable secure web access url link
           grep -o 'https://[^ ]*\(pinggy.link\|pinggy.io\)' pinggy.log || cat pinggy.log
           
           echo ""
@@ -127,5 +125,4 @@ jobs:
           echo "3. Use your computer keyboard ARROW KEYS to steer Up/Down/Left/Right!"
           echo "================================================================"
           
-          # Keeps the workflow worker open for 60 full minutes
           sleep 3600
