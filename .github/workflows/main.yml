@@ -5,7 +5,7 @@ on:
 
 jobs:
   run-1hour-tv:
-    runs-runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -17,6 +17,7 @@ jobs:
 
       - name: Download GTV14 Android TV ISO
         run: |
+          echo "Downloading ISO using browser bypass with the correct target download link..."
           curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
             -o gtv14_atv.iso \
             "https://sourceforge.net"
@@ -28,7 +29,6 @@ jobs:
       - name: Launch GTV14 in QEMU (Headless VNC Server)
         run: |
           echo "Starting QEMU process cleanly..."
-          # Redirecting raw stdout/stderr outputs prevents log mixing issues in GitHub Actions
           sudo qemu-system-x86_64 \
             -enable-kvm \
             -cpu host \
@@ -50,7 +50,6 @@ jobs:
           sleep 8
           
           echo "Injecting return key via native echo channel..."
-          # Flushing the buffer clean prior to sending the raw keystroke string
           (echo ""; sleep 1; echo "sendkey ret") | sudo nc -U qemu_control.sock
           echo "Boot selection delivered successfully."
 
