@@ -1,109 +1,59 @@
-name: Android TV 9 True-Color 1 Hour VM
+name: Android SDK TV 9 Native 1 Hour VM
 
 on:
   workflow_dispatch:
 
 jobs:
-  run-atv9-vm:
-    runs-on: ubuntu-latest
+  run-sdk-tv:
+    runs-on: macos-13 # macOS provides native hardware acceleration for the official Android emulator
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install QEMU, noVNC, and Utilities
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 qemu-utils wget adb novnc websockify
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
 
-      - name: Grant Runner Access to KVM Hardware Extensions
+      - name: Install Android SDK Components and System Image
         run: |
-          echo "Applying system group rules to bypass KVM kernel permissions..."
-          sudo usermod -aG kvm $USER
-          sudo chown $USER /dev/kvm
+          echo "Installing SDK Command Line Tools and native Android TV image..."
+          # Accept licenses automatically
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
+          
+          # Download Android TV 9 (API 28) x86_64 system image
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "system-images;android-28;android-tv;x86_64"
+          
+          # Create the Android Virtual Device (AVD) profiled as a large 720p TV
+          echo "no" | $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager create avd \
+            --name "Android_TV_9" \
+            --package "system-images;android-28;android-tv;x86_64" \
+            --device "tv_720p" \
+            --force
 
-      - name: Download Android TV 9 ISO (Exact Filename Match)
+      - name: Install noVNC and Websockify
         run: |
-          echo "Downloading ISO using exact target filename wrapper..."
-          curl -L -A "Mozilla/5.0" \
-            -o "AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-(07.02.23).iso" \
-            "https://archive.org/download/androidtv-x86/AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-%2807.02.23%29.iso"
+          brew install novnc websockify
 
-      - name: Launch Android TV 9 in QEMU (Hardwired Input Drivers)
+      - name: Launch Android SDK TV Emulator (Headless Mode)
         run: |
-          echo "Starting accelerated QEMU container with native PS/2 and USB input controllers..."
-          # Added '-device i8042' to force modern legacy PS/2 hardware keyboard bus lanes to remain wide open
-          # Added '-device usb-kbd' and '-device usb-tablet' to prevent Android from dropping mouse tracking data
-          qemu-system-x86_64 \
-            -enable-kvm \
-            -cpu Westmere,+ssse3,+sse4.1,+sse4.2,+popcnt,aes=on \
-            -m 6G \
-            -smp 4,cores=4,threads=1 \
-            -drive file="AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-(07.02.23).iso",if=ide,media=cdrom,format=raw \
-            -boot order=d,menu=on,once=d \
-            -vga std \
-            -device i8042 \
-            -usb \
-            -device usb-kbd \
-            -device usb-tablet \
-            -display none \
-            -audio none \
-            -vnc 127.0.0.1:0 \
-            -net nic,model=virtio \
-            -net user,hostfwd=tcp::5555-:5555 \
-            -monitor telnet:127.0.0.1:4444,server,nowait \
+          echo "Starting native Android emulator at high performance speeds..."
+          # Launches the official Android emulator headlessly with native VNC display mapping
+          $ANDROID_HOME/emulator/emulator -avd "Android_TV_9" \
+            -no-audio \
+            -no-boot-anim \
+            -gpu swiftshader_indirect \
+            -vnc :0 \
+            -accel on \
+            -memory 4096 \
+            -cores 4 \
             -daemonize
-
-      - name: Automated True-Color Large Viewport Boot Macro
-        run: |
-          echo "Waiting 12 seconds for the generic GRUB boot selection page to generate..."
-          sleep 12
-          
-          echo "Injecting resolution scales and input-preserving layout variables..."
-          python3 -c '
-          import socket, time
-          s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-          s.connect(("127.0.0.1", 4444))
-          time.sleep(0.5)
-          
-          # Press "Tab" to open the boot parameters line editor
-          s.sendall(b"sendkey tab\n")
-          time.sleep(0.5)
-          s.sendall(b"sendkey spc\n")
-          time.sleep(0.1)
-          
-          # Removed EXTMOD=vesafb to prevent Android from shutting down key tracking engines
-          # vga=788: Corrects the color mapping bytes natively (fixes the inverted colors)
-          # video=1280x720 DPI=160: Forces a large widescreen television screen layout in your web player
-          # SETUPWIZARD=0: Skips the crashing Google initialization registration loops
-          boot_params = "vga=788 video=1280x720 DPI=160 SETUPWIZARD=0 quiet"
-          for char in boot_params:
-              if char == " ":
-                  s.sendall(b"sendkey spc\n")
-              elif char == "=":
-                  s.sendall(b"sendkey kp_equals\n")
-              elif char == "0":
-                  s.sendall(b"sendkey 0\n")
-              elif char == "1":
-                  s.sendall(b"sendkey 1\n")
-              else:
-                  s.sendall(f"sendkey {char}\n".encode())
-              time.sleep(0.04)
-          
-          time.sleep(0.5)
-          # Hit Enter to boot directly into the input-enabled high-definition layout
-          s.sendall(b"sendkey ret\n")
-          s.close()
-          '
-          echo "Macro parameters processed completely. Loading accelerated user desktop layout..."
-
-      - name: Apply Browser True-Color Patch into noVNC
-        run: |
-          echo "Injecting canvas color correction filter into noVNC page..."
-          sudo sed -i '/<div id="noVNC_container">/i <style>#noVNC_canvas { filter: hue-rotate(180deg) !important; }</style>' /usr/share/novnc/vnc.html
 
       - name: Start Websockify (VNC to WebSockets)
         run: |
-          websockify --web /usr/share/novnc/ --heartbeat 10 6080 127.0.0.1:5900 &
+          # Maps VNC framework port 5900 onto browser network port 6080
+          websockify --web /opt/homebrew/share/novnc/ --heartbeat 10 6080 127.0.0.1:5900 &
           sleep 2
 
       - name: Generate Public Remote Link and Hold for 1 Hour
@@ -112,6 +62,7 @@ jobs:
           echo "LAUNCHING AUTHENTICATED TUNNEL ENGINE OVER PORT 443..."
           echo "================================================================"
           
+          # Stable web tunnel utilizing your premium profile token code parameter
           ssh -o StrictHostKeyChecking=no -p 443 -R 80:localhost:6080 RPLfy23ckPE+80@a.pinggy.io > pinggy.log 2>&1 &
           
           sleep 10
@@ -120,6 +71,7 @@ jobs:
           echo "--> YOUR ONLINE VIRTUAL MACHINE REMOTE DETAILS <--"
           echo "================================================================"
           
+          # Extract and print out your clickable secure web access url link
           grep -o 'https://[^ ]*\(pinggy.link\|pinggy.io\)' pinggy.log || cat pinggy.log
           
           echo ""
@@ -129,4 +81,5 @@ jobs:
           echo "3. Use your computer keyboard ARROW KEYS to steer Up/Down/Left/Right!"
           echo "================================================================"
           
+          # Keeps the workflow worker open for 60 full minutes
           sleep 3600
