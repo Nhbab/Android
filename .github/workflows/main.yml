@@ -1,10 +1,10 @@
-name: Nexus Player Android TV 9 (1 Hour VM)
+name: Android TV 9 Live CD 1 Hour VM
 
 on:
   workflow_dispatch:
 
 jobs:
-  run-nexus-player:
+  run-live-atv9:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -28,10 +28,10 @@ jobs:
             -o "AndroidTV9-x64.iso" \
             "https://archive.org/download/androidtv-x86/AndroidTV9-x64-k5.18.0-arm-gapps-wifi6-%2807.02.23%29.iso"
 
-      - name: Launch Android TV 9 (Native ISO Boot Mode)
+      - name: Launch Android TV 9 in QEMU (Native Disc Live Mode)
         run: |
-          echo "Starting QEMU container via native optical drive mapping to prevent boot freezes..."
-          # Uses full standard CPU flags matching the Intel Atom layout requirement of the Nexus Player architecture
+          echo "Starting accelerated QEMU container layout using native CD-ROM mounting..."
+          # Emulates a complete standard Intel Atom setup matching the Nexus Player specifications
           qemu-system-x86_64 \
             -enable-kvm \
             -cpu Westmere,+ssse3,+sse4.1,+sse4.2,+popcnt,aes=on \
@@ -50,46 +50,29 @@ jobs:
             -monitor telnet:127.0.0.1:4444,server,nowait \
             -daemonize
 
-      - name: Automated GRUB True-Color Video Override Macro
+      - name: Fast Automated Live CD VESA Boot Selection
         run: |
-          echo "Waiting 12 seconds for the generic GRUB boot selection page to generate..."
+          echo "Waiting 12 seconds for the GRUB live boot options to process..."
           sleep 12
           
-          echo "Injecting native layout overrides via QEMU control socket channel..."
+          echo "Injecting clean arrow adjustments to target Live CD VESA Engine..."
           python3 -c '
           import socket, time
           s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
           s.connect(("127.0.0.1", 4444))
           time.sleep(0.5)
           
-          # Press "Tab" to open the interactive kernel boot parameters line editor window
-          s.sendall(b"sendkey tab\n")
-          time.sleep(0.5)
+          # Move down exactly 3 times to safely highlight "Live CD - VESA Mode"
+          for i in range(3):
+              s.sendall(b"sendkey down\n")
+              time.sleep(0.5)
           
-          # Inject spaces to separate our flags from the native build command variables
-          s.sendall(b"sendkey spc\n")
-          time.sleep(0.1)
-          
-          # Type "vga=788" string manually to clear the weird flipped color bug instantly in memory
-          # Type "DATA=" to initialize the internal RAM layout wizard correctly
-          # Type "quiet" to prevent logging congestion from slowing down our boot sequence
-          boot_params = "vga=788 DATA= quiet"
-          for char in boot_params:
-              if char == " ":
-                  s.sendall(b"sendkey spc\n")
-              elif char == "=":
-                  # Maps the correct system equal sign keycode parameter inside the QEMU shell monitor
-                  s.sendall(b"sendkey kp_equals\n")
-              else:
-                  s.sendall(f"sendkey {char}\n".encode())
-              time.sleep(0.05)
-          
-          time.sleep(0.5)
-          # Hit Enter to boot directly into the true-color accelerated television workspace framework!
+          # Press Enter to run Android TV natively in true-color Live CD mode instantly
           s.sendall(b"sendkey ret\n")
+          time.sleep(0.5)
           s.close()
           '
-          echo "Macro sequence processed completely. Loading accelerated user desktop layout..."
+          echo "Boot command executed successfully. True Color Android TV 9 GUI is loading..."
 
       - name: Start Websockify (VNC to WebSockets)
         run: |
