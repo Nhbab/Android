@@ -36,7 +36,6 @@ jobs:
       - name: Install Display Buffers, X11VNC, and noVNC on Ubuntu
         run: |
           sudo apt-get update
-          # Installed Xvfb (Virtual Screen), x11vnc (VNC engine), and scrcpy (Screen mirroring tool)
           sudo apt-get install -y xvfb x11vnc novnc websockify scrcpy
 
       - name: Initialize Virtual Display Server (Xvfb)
@@ -45,38 +44,36 @@ jobs:
           Xvfb :1 -screen 0 1280x720x24 &
           sleep 2
 
-      - name: Launch Android SDK TV Emulator (Headless Soft-GPU Engine)
+      - name: Launch Android SDK TV Emulator (Software Accelerated Background)
         run: |
           echo "Starting official Android TV emulator in software execution mode..."
           export ANDROID_AVD_HOME="$HOME/.android/avd"
           
-          # Removed the broken '-vnc' flag entirely to prevent engine crashes
+          # FIXED: Removed the unsupported -daemonize flag and appended '&' to keep the server running in the background safely
           $ANDROID_HOME/emulator/emulator -avd "Android_TV_9" \
             -no-window \
             -no-audio \
             -no-boot-anim \
             -gpu swiftshader_indirect \
             -memory 3072 \
-            -cores 3 \
-            -daemonize
+            -cores 3 &
+          sleep 5
 
       - name: Establish Native Stream Capture (scrcpy to Xvfb)
         run: |
-          echo "Waiting 25 seconds for Android core OS kernel layers to initialize..."
-          sleep 25
+          echo "Waiting 30 seconds for Android core OS kernel layers to initialize..."
+          sleep 30
           
           echo "Connecting via local debugging layer..."
           adb wait-for-device
           
           echo "Binding emulator display buffer to virtual screen display pool..."
-          # Forces scrcpy to pull the hardware screen and render it straight inside our headless X11 pool
           DISPLAY=:1 scrcpy --max-fps=30 --always-on-top --window-title="atv" &
           sleep 3
 
       - name: Initialize Network Streaming Ports
         run: |
           echo "Starting x11vnc server pointing to display channel :1..."
-          # Creates a robust background VNC interface bound to port 5900
           x11vnc -display :1 -nopw -listen 127.0.0.1 -forever -bg
           sleep 2
           
